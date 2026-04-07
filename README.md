@@ -75,12 +75,47 @@ The API will be available at:
 http://127.0.0.1:8000/
 ```
 
+## Automation
+
+### GitHub Actions
+
+- `ci.yml` runs Django system checks and tests on pushes and pull requests.
+- `pre-commit.yml` runs formatting and lint checks on pull requests.
+
+### Pre-commit
+
+This project uses `pre-commit` as the Python-native alternative to Husky.
+
+```powershell
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+### Testing and Linting
+
+- `pytest` runs the automated test suite.
+- `black` formats Python code.
+- `isort` sorts imports.
+- `flake8` checks for lint issues.
+
+Run them locally with:
+
+```powershell
+pytest
+black .
+isort .
+flake8
+```
+
 ## Project Structure
 
 ```text
 QueueLess-Backend/
 	queueless_backend/
 		manage.py
+		mock_api/
+		notifications/
 		queue_tracker/
 		queueless_backend/
 ```
