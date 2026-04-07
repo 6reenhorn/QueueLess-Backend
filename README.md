@@ -81,6 +81,8 @@ http://127.0.0.1:8000/
 QueueLess-Backend/
 	queueless_backend/
 		manage.py
+		mock_api/
+		notifications/
 		queue_tracker/
 		queueless_backend/
 ```
