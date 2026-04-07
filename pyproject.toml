@@ -10,3 +10,4 @@ known_first_party = ["queueless_backend", "queue_tracker", "notifications", "moc
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "queueless_backend.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+pythonpath = ["queueless_backend"]
