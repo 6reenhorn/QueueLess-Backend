@@ -1,3 +1,6 @@
-from django.test import TestCase
+from django.test import SimpleTestCase
 
-# Create your tests here.
+
+class QueueTrackerSmokeTest(SimpleTestCase):
+    def test_sanity(self):
+        self.assertTrue(True)
