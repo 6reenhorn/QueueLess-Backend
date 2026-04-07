@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'queue_tracker',
-    'notifications',
+    'notifications.apps.NotificationsConfig',
 ]
 
 MIDDLEWARE = [

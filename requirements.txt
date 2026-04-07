@@ -2,3 +2,9 @@ django
 djangorestframework
 django-cors-headers
 channels
+pre-commit
+pytest
+pytest-django
+black
+isort
+flake8
