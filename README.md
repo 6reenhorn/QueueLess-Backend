@@ -45,8 +45,22 @@ python -m venv venv
 
 ### 2) Activate Virtual Environment
 
+Windows PowerShell:
+
 ```powershell
 venv\Scripts\activate
+```
+
+Windows Command Prompt:
+
+```bat
+venv\Scripts\activate.bat
+```
+
+macOS/Linux:
+
+```bash
+source venv/bin/activate
 ```
 
 ### 3) Install Dependencies
@@ -106,6 +120,29 @@ pytest
 black .
 isort .
 flake8
+```
+
+If you run tests outside pytest defaults, set Django settings explicitly:
+
+Windows PowerShell:
+
+```powershell
+$env:DJANGO_SETTINGS_MODULE = "queueless_backend.settings"
+pytest
+```
+
+Windows Command Prompt:
+
+```bat
+set DJANGO_SETTINGS_MODULE=queueless_backend.settings
+pytest
+```
+
+macOS/Linux:
+
+```bash
+export DJANGO_SETTINGS_MODULE=queueless_backend.settings
+pytest
 ```
 
 ## Project Structure
