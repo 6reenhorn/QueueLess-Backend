@@ -39,9 +39,11 @@ IS_TEST_ENV = "PYTEST_CURRENT_TEST" in os.environ or any(
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret.
-DEBUG = env_bool("DEBUG", default=False)
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-only-change-me")
-if not DEBUG and not IS_TEST_ENV and SECRET_KEY == "django-insecure-dev-only-change-me":
+# Default DEBUG=True for local dev and CI. Production must set DEBUG=False.
+DEBUG = env_bool("DEBUG", default=True)
+DEV_SECRET_KEY = "django-insecure-dev-only-change-me"
+SECRET_KEY = os.getenv("SECRET_KEY", DEV_SECRET_KEY)
+if not DEBUG and not IS_TEST_ENV and SECRET_KEY == DEV_SECRET_KEY:
     raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is False.")
 
 ALLOWED_HOSTS = [
