@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
@@ -29,16 +30,25 @@ def env_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+IS_TEST_ENV = "PYTEST_CURRENT_TEST" in os.environ or any(
+    "pytest" in arg for arg in sys.argv
+)
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret.
-DEBUG = env_bool("DEBUG", default=True)
+DEBUG = env_bool("DEBUG", default=False)
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-only-change-me")
-if not DEBUG and SECRET_KEY == "django-insecure-dev-only-change-me":
+if not DEBUG and not IS_TEST_ENV and SECRET_KEY == "django-insecure-dev-only-change-me":
     raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is False.")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
+]
+if not DEBUG and not IS_TEST_ENV and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS must be set when DEBUG is False.")
 
 
 # Application definition
@@ -95,10 +105,13 @@ WSGI_APPLICATION = "queueless_backend.wsgi.application"
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    DATABASES = {
-        "default": dj_database_url.parse(database_url, conn_max_age=600),
-    }
-elif DEBUG:
+    try:
+        DATABASES = {
+            "default": dj_database_url.parse(database_url, conn_max_age=600),
+        }
+    except ValueError as exc:
+        raise ImproperlyConfigured(f"DATABASE_URL is invalid: {exc}") from exc
+elif DEBUG or IS_TEST_ENV:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -149,8 +162,13 @@ USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Development CORS configuration.
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+# CORS configuration from environment variables.
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", default=False)
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 # Development-friendly in-memory channel layer.
 CHANNEL_LAYERS = {

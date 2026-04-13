@@ -122,7 +122,11 @@ isort .
 flake8
 ```
 
-If you run tests outside pytest defaults, set Django settings explicitly:
+`pytest` works out of the box in this repository because
+`DJANGO_SETTINGS_MODULE` is already configured in `pyproject.toml`.
+
+If you run tests with a non-standard runner or custom shell setup, use this
+fallback:
 
 Windows PowerShell:
 
