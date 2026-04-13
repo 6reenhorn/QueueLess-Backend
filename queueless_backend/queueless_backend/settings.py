@@ -10,22 +10,47 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
+import sys
 from pathlib import Path
+
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR.parent / ".env")
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+IS_TEST_ENV = "PYTEST_CURRENT_TEST" in os.environ or any(
+    "pytest" in arg for arg in sys.argv
+)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-jomr@caz+db-g*@$8^jboo$s78$90g5*--$puz*ewn!zx))$84"
+# SECURITY WARNING: keep the secret key used in production secret.
+# Default DEBUG=True for local dev and CI. Production must set DEBUG=False.
+DEBUG = env_bool("DEBUG", default=True)
+DEV_SECRET_KEY = "django-insecure-dev-only-change-me"
+SECRET_KEY = os.getenv("SECRET_KEY", DEV_SECRET_KEY)
+if not DEBUG and not IS_TEST_ENV and SECRET_KEY == DEV_SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is False.")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
+]
+if not DEBUG and not IS_TEST_ENV and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS must be set when DEBUG is False.")
 
 
 # Application definition
@@ -80,12 +105,23 @@ WSGI_APPLICATION = "queueless_backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    try:
+        DATABASES = {
+            "default": dj_database_url.parse(database_url, conn_max_age=600),
+        }
+    except ValueError as exc:
+        raise ImproperlyConfigured(f"DATABASE_URL is invalid: {exc}") from exc
+elif DEBUG or IS_TEST_ENV:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    raise ImproperlyConfigured("DATABASE_URL must be set when DEBUG is False.")
 
 
 # Password validation
@@ -126,9 +162,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Development CORS configuration.
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS configuration from environment variables.
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", default=False)
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 # Development-friendly in-memory channel layer.
 CHANNEL_LAYERS = {

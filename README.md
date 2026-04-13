@@ -34,8 +34,9 @@ Supports the frontend by keeping queue data accurate and updated, helping busine
 1. Clone the repository.
 2. Create and activate a virtual environment.
 3. Install dependencies.
-4. Run migrations.
-5. Start the development server.
+4. Create local environment variables.
+5. Run migrations.
+6. Start the development server.
 
 ### 1) Create Virtual Environment
 
@@ -45,8 +46,22 @@ python -m venv venv
 
 ### 2) Activate Virtual Environment
 
+Windows PowerShell:
+
 ```powershell
 venv\Scripts\activate
+```
+
+Windows Command Prompt:
+
+```bat
+venv\Scripts\activate.bat
+```
+
+macOS/Linux:
+
+```bash
+source venv/bin/activate
 ```
 
 ### 3) Install Dependencies
@@ -55,7 +70,25 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4) Run Migrations
+### 4) Create Local Environment Variables
+
+Copy the example environment file and customize values as needed.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS/Linux:
+
+```bash
+cp .env.example .env
+```
+
+Minimum variables for local development are documented in `.env.example`.
+
+### 5) Run Migrations
 
 ```powershell
 cd queueless_backend
@@ -63,7 +96,7 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-### 5) Start Development Server
+### 6) Start Development Server
 
 ```powershell
 python manage.py runserver
@@ -106,6 +139,33 @@ pytest
 black .
 isort .
 flake8
+```
+
+`pytest` works out of the box in this repository because
+`DJANGO_SETTINGS_MODULE` is already configured in `pyproject.toml`.
+
+If you run tests with a non-standard runner or custom shell setup, use this
+fallback:
+
+Windows PowerShell:
+
+```powershell
+$env:DJANGO_SETTINGS_MODULE = "queueless_backend.settings"
+pytest
+```
+
+Windows Command Prompt:
+
+```bat
+set DJANGO_SETTINGS_MODULE=queueless_backend.settings
+pytest
+```
+
+macOS/Linux:
+
+```bash
+export DJANGO_SETTINGS_MODULE=queueless_backend.settings
+pytest
 ```
 
 ## Project Structure
