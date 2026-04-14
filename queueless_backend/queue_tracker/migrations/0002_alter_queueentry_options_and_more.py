@@ -6,16 +6,16 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('queue_tracker', '0001_initial'),
+        ("queue_tracker", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='queueentry',
-            options={'ordering': ['institution_id', 'queue_number']},
+            name="queueentry",
+            options={"ordering": ["institution_id", "queue_number"]},
         ),
         migrations.RemoveField(
-            model_name='queueentry',
-            name='created_at',
+            model_name="queueentry",
+            name="created_at",
         ),
     ]
