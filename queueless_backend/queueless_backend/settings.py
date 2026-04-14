@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
+    "mock_api.apps.MockApiConfig",
     "queue_tracker",
     "notifications.apps.NotificationsConfig",
 ]
