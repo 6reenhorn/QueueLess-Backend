@@ -3,17 +3,19 @@ import uuid
 from django.db import models
 from django.db.models import Q
 
-ACTIVE_QUEUE_STATUSES = ("waiting", "notified")
+
+class QueueEntryStatus(models.TextChoices):
+    WAITING = "waiting", "Waiting"
+    NOTIFIED = "notified", "Notified"
+    SERVED = "served", "Served"
+    EXPIRED = "expired", "Expired"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+ACTIVE_QUEUE_STATUSES = (QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED)
 
 
 class QueueEntry(models.Model):
-    class Status(models.TextChoices):
-        WAITING = "waiting", "Waiting"
-        NOTIFIED = "notified", "Notified"
-        SERVED = "served", "Served"
-        EXPIRED = "expired", "Expired"
-        CANCELLED = "cancelled", "Cancelled"
-
     institution = models.ForeignKey(
         "mock_api.Institution",
         on_delete=models.CASCADE,
@@ -28,8 +30,8 @@ class QueueEntry(models.Model):
     near_turn_notified = models.BooleanField(default=False)
     status = models.CharField(
         max_length=20,
-        choices=Status.choices,
-        default=Status.WAITING,
+        choices=QueueEntryStatus.choices,
+        default=QueueEntryStatus.WAITING,
     )
     issued_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

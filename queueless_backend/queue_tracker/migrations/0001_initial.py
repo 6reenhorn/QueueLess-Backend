@@ -27,8 +27,6 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
                 (
                     "session_id",
                     models.UUIDField(default=uuid.uuid4, editable=False, unique=True),
@@ -54,6 +52,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("issued_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
                 ("served_at", models.DateTimeField(blank=True, null=True)),
                 ("expires_at", models.DateTimeField(blank=True, null=True)),
                 (
@@ -66,7 +65,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "ordering": ["institution__name", "queue_number"],
+                "ordering": ["institution_id", "queue_number"],
                 "indexes": [
                     models.Index(
                         fields=["institution", "status"],

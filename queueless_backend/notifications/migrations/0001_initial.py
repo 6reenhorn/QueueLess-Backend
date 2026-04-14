@@ -25,8 +25,6 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
                 (
                     "channel",
                     models.CharField(
@@ -52,6 +50,7 @@ class Migration(migrations.Migration):
                 ),
                 ("message", models.TextField()),
                 ("sent_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
                 ("delivered", models.BooleanField(default=False)),
                 ("external_reference", models.CharField(blank=True, max_length=120)),
                 ("error_detail", models.TextField(blank=True)),
