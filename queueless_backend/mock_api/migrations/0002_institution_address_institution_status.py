@@ -13,7 +13,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="institution",
             name="address",
-            field=models.CharField(blank=True, max_length=500),
+            field=models.CharField(blank=True, default="", max_length=500),
+            preserve_default=False,
         ),
         migrations.AddField(
             model_name="institution",

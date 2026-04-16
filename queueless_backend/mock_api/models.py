@@ -27,7 +27,7 @@ class Institution(TimeStampedModel):
         choices=InstitutionType.choices,
         default=InstitutionType.OTHER,
     )
-    address = models.CharField(max_length=500, blank=True)
+    address = models.CharField(max_length=500, blank=True, default="")
     api_endpoint = models.URLField(max_length=500, blank=True)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.OPEN
