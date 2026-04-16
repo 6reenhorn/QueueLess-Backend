@@ -24,4 +24,29 @@ class Migration(migrations.Migration):
                 max_length=20,
             ),
         ),
+        migrations.AlterField(
+            model_name="institution",
+            name="is_active",
+            field=models.BooleanField(
+                default=True,
+                help_text=(
+                    "Administrative flag indicating whether this institution should "
+                    "be enabled in the application, independent of its operational "
+                    "status."
+                ),
+            ),
+        ),
+        migrations.AlterField(
+            model_name="institution",
+            name="status",
+            field=models.CharField(
+                choices=[("open", "Open"), ("closed", "Closed"), ("paused", "Paused")],
+                default="open",
+                help_text=(
+                    "Operational state of the institution (for example, whether it is "
+                    "open, closed, or paused)."
+                ),
+                max_length=20,
+            ),
+        ),
     ]
