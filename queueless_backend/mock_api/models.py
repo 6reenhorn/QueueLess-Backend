@@ -44,4 +44,7 @@ class Institution(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.get_institution_type_display()}) - {self.get_status_display()}"
+        return (
+            f"{self.name} ({self.get_institution_type_display()})"
+            f" - {self.get_status_display()}"
+        )
