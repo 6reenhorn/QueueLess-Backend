@@ -15,6 +15,11 @@ class Institution(TimeStampedModel):
         GOVERNMENT = "government", "Government Office"
         UTILITY = "utility", "Utility Provider"
         OTHER = "other", "Other"
+    
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        CLOSED = "closed", "Closed"
+        PAUSED = "paused", "Paused"
 
     name = models.CharField(max_length=255)
     institution_type = models.CharField(
@@ -22,7 +27,12 @@ class Institution(TimeStampedModel):
         choices=InstitutionType.choices,
         default=InstitutionType.OTHER,
     )
+    address = models.CharField(max_length=500, blank=True)
     api_endpoint = models.URLField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=20, 
+        choices=Status.choices, 
+        default=Status.OPEN)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -35,4 +45,4 @@ class Institution(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.get_institution_type_display()})"
+        return f"{self.name} ({self.get_institution_type_display()}) - {self.get_status_display()}"
