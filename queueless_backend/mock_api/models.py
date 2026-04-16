@@ -15,7 +15,7 @@ class Institution(TimeStampedModel):
         GOVERNMENT = "government", "Government Office"
         UTILITY = "utility", "Utility Provider"
         OTHER = "other", "Other"
-    
+
     class Status(models.TextChoices):
         OPEN = "open", "Open"
         CLOSED = "closed", "Closed"
@@ -30,9 +30,8 @@ class Institution(TimeStampedModel):
     address = models.CharField(max_length=500, blank=True)
     api_endpoint = models.URLField(max_length=500, blank=True)
     status = models.CharField(
-        max_length=20, 
-        choices=Status.choices, 
-        default=Status.OPEN)
+        max_length=20, choices=Status.choices, default=Status.OPEN
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
