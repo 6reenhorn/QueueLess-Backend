@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
             name="status",
             field=models.CharField(
                 choices=[("open", "Open"), ("closed", "Closed"), ("paused", "Paused")],
-                default="closed",
+                default="open",
                 max_length=20,
             ),
         ),
