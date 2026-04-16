@@ -6,18 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('mock_api', '0002_institution_address_institution_status'),
+        ("mock_api", "0002_institution_address_institution_status"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='institution',
-            name='is_active',
-            field=models.BooleanField(default=True, help_text='Administrative flag indicating whether this institution should be enabled in the application, independent of its operational status.'),
+            model_name="institution",
+            name="is_active",
+            field=models.BooleanField(
+                default=True,
+                help_text=(
+                    "Administrative flag indicating whether this institution should "
+                    "be enabled in the application, independent of its operational "
+                    "status."
+                ),
+            ),
         ),
         migrations.AlterField(
-            model_name='institution',
-            name='status',
-            field=models.CharField(choices=[('open', 'Open'), ('closed', 'Closed'), ('paused', 'Paused')], default='open', help_text='Operational state of the institution (for example, whether it is open, closed, or paused).', max_length=20),
+            model_name="institution",
+            name="status",
+            field=models.CharField(
+                choices=[("open", "Open"), ("closed", "Closed"), ("paused", "Paused")],
+                default="open",
+                help_text=(
+                    "Operational state of the institution (for example, whether it is "
+                    "open, closed, or paused)."
+                ),
+                max_length=20,
+            ),
         ),
     ]
