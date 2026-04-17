@@ -1,9 +1,9 @@
 import random
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,7 +15,6 @@ from .serializers import (
     InstitutionQueueEntrySerializer,
     QueueEntryStatusSerializer,
     QueueJoinSerializer,
-    get_next_queue_number_for_institution,
 )
 
 
@@ -31,40 +30,69 @@ class QueueJoinView(APIView):
         )
         near_turn_threshold = serializer.validated_data.get("near_turn_threshold", 3)
 
-        with transaction.atomic():
+        retries = 3
+        entry = None
+        for attempt in range(retries):
             try:
-                institution = Institution.objects.select_for_update().get(
-                    pk=institution_id
-                )
-            except Institution.DoesNotExist:
-                return Response(
-                    {"detail": "Institution not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+                with transaction.atomic():
+                    try:
+                        institution = Institution.objects.select_for_update().get(
+                            pk=institution_id
+                        )
+                    except Institution.DoesNotExist:
+                        return Response(
+                            {"detail": "Institution not found."},
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
 
-            if not institution.is_available_for_queue:
-                return Response(
-                    {"detail": "Institution is not currently available for queueing."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                    if not institution.is_available_for_queue:
+                        return Response(
+                            {
+                                "detail": (
+                                    "Institution is not currently available "
+                                    "for queueing."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
-            queue_number = get_next_queue_number_for_institution(institution)
-            current_serving_number = (
-                QueueEntry.objects.filter(institution=institution).aggregate(
-                    value=Max("current_serving_number")
-                )["value"]
-                or 0
-            )
+                    latest_entry = (
+                        QueueEntry.objects.select_for_update()
+                        .filter(institution=institution)
+                        .order_by("-queue_number")
+                        .first()
+                    )
+                    queue_number = (
+                        latest_entry.queue_number if latest_entry else 0
+                    ) + 1
+                    current_serving_number = (
+                        QueueEntry.objects.filter(institution=institution).aggregate(
+                            value=Max("current_serving_number")
+                        )["value"]
+                        or 0
+                    )
 
-            entry = QueueEntry.objects.create(
-                institution=institution,
-                queue_number=queue_number,
-                current_serving_number=current_serving_number,
-                phone_number=phone_number,
-                browser_push_opt_in=browser_push_opt_in,
-                near_turn_threshold=near_turn_threshold,
-                status=QueueEntryStatus.WAITING,
-            )
+                    entry = QueueEntry.objects.create(
+                        institution=institution,
+                        queue_number=queue_number,
+                        current_serving_number=current_serving_number,
+                        phone_number=phone_number,
+                        browser_push_opt_in=browser_push_opt_in,
+                        near_turn_threshold=near_turn_threshold,
+                        status=QueueEntryStatus.WAITING,
+                    )
+                break
+            except IntegrityError:
+                if attempt == retries - 1:
+                    return Response(
+                        {
+                            "detail": (
+                                "Could not allocate a queue number due to "
+                                "concurrent requests. Please retry."
+                            )
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
         response_serializer = QueueEntryStatusSerializer(entry)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -153,6 +181,8 @@ class QueueSimulateTickView(APIView):
     """
     Simulates queue movement with random increments to mimic real operations.
     """
+
+    permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, institution_id):
         randomize = (

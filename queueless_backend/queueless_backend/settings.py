@@ -41,6 +41,7 @@ IS_TEST_ENV = "PYTEST_CURRENT_TEST" in os.environ or any(
 # SECURITY WARNING: keep the secret key used in production secret.
 # Default DEBUG=True for local dev and CI. Production must set DEBUG=False.
 DEBUG = env_bool("DEBUG", default=True)
+ENABLE_MOCK_API = env_bool("ENABLE_MOCK_API", default=DEBUG)
 DEV_SECRET_KEY = "django-insecure-dev-only-change-me"
 SECRET_KEY = os.getenv("SECRET_KEY", DEV_SECRET_KEY)
 if not DEBUG and not IS_TEST_ENV and SECRET_KEY == DEV_SECRET_KEY:

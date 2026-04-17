@@ -88,6 +88,17 @@ cp .env.example .env
 
 Minimum variables for local development are documented in `.env.example`.
 
+### Mock API Toggle
+
+Mock institution and queue simulation routes are controlled by `ENABLE_MOCK_API`.
+
+- `ENABLE_MOCK_API=True` enables `/api/` and `/api/queue/` mock routes.
+- `ENABLE_MOCK_API=False` disables these mock routes.
+
+If not set, `ENABLE_MOCK_API` defaults to the value of `DEBUG`.
+For deployed environments, set `ENABLE_MOCK_API=False` unless mock endpoints are
+explicitly required.
+
 ### 5) Run Migrations
 
 ```powershell
