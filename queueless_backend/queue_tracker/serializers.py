@@ -13,6 +13,7 @@ class QueueJoinSerializer(serializers.Serializer):
 
 
 class QueueEntryStatusSerializer(serializers.ModelSerializer):
+    institution_id = serializers.IntegerField(read_only=True)
     people_ahead = serializers.IntegerField(read_only=True)
 
     class Meta:

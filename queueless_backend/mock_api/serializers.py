@@ -4,6 +4,7 @@ from .models import Institution
 
 
 class InstitutionSerializer(serializers.ModelSerializer):
+    is_available_for_queue = serializers.BooleanField(read_only=True)
     queue_waiting_count = serializers.IntegerField(read_only=True)
     current_serving_number = serializers.IntegerField(read_only=True)
     next_queue_number = serializers.IntegerField(read_only=True)
