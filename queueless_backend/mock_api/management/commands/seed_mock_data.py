@@ -144,11 +144,24 @@ class Command(BaseCommand):
             if reset_queues:
                 QueueEntry.objects.filter(institution=institution).delete()
 
-            baseline_current_serving = random.randint(0, 7)
-            existing_max = QueueEntry.objects.filter(institution=institution).aggregate(
-                value=Max("queue_number")
-            )["value"]
-            next_queue_number = (existing_max or baseline_current_serving) + 1
+            existing_queue_state = QueueEntry.objects.filter(
+                institution=institution
+            ).aggregate(
+                max_queue_number=Max("queue_number"),
+                max_current_serving_number=Max("current_serving_number"),
+            )
+            existing_max = existing_queue_state["max_queue_number"]
+
+            if existing_max is None:
+                baseline_current_serving = random.randint(0, 7)
+                next_queue_number = baseline_current_serving + 1
+            else:
+                baseline_current_serving = min(
+                    existing_queue_state["max_current_serving_number"] or 0,
+                    existing_max,
+                )
+                next_queue_number = existing_max + 1
+
             entries_to_create = random.randint(min_queue, max_queue)
 
             for i in range(entries_to_create):

@@ -7,25 +7,12 @@ from .models import QueueEntry
 
 
 class QueueJoinSerializer(serializers.Serializer):
-    institution_id = serializers.IntegerField()
+    institution_id = serializers.IntegerField(min_value=1)
     phone_number = serializers.CharField(
         max_length=20, required=False, allow_blank=True
     )
     browser_push_opt_in = serializers.BooleanField(default=False)
     near_turn_threshold = serializers.IntegerField(min_value=1, max_value=10, default=3)
-
-    def validate_institution_id(self, value: int) -> int:
-        try:
-            institution = Institution.objects.get(pk=value)
-        except Institution.DoesNotExist as exc:
-            raise serializers.ValidationError("Institution not found.") from exc
-
-        if not institution.is_available_for_queue:
-            raise serializers.ValidationError(
-                "Institution is not currently available for queueing."
-            )
-
-        return value
 
 
 class QueueEntryStatusSerializer(serializers.ModelSerializer):

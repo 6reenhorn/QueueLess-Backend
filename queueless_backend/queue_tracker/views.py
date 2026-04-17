@@ -32,7 +32,16 @@ class QueueJoinView(APIView):
         near_turn_threshold = serializer.validated_data.get("near_turn_threshold", 3)
 
         with transaction.atomic():
-            institution = Institution.objects.select_for_update().get(pk=institution_id)
+            try:
+                institution = Institution.objects.select_for_update().get(
+                    pk=institution_id
+                )
+            except Institution.DoesNotExist:
+                return Response(
+                    {"detail": "Institution not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
             if not institution.is_available_for_queue:
                 return Response(
                     {"detail": "Institution is not currently available for queueing."},
@@ -150,36 +159,44 @@ class QueueSimulateTickView(APIView):
             str(request.query_params.get("randomize", "true")).lower() != "false"
         )
 
-        try:
-            institution = Institution.objects.get(pk=institution_id)
-        except Institution.DoesNotExist:
-            return Response(
-                {"detail": "Institution not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        active_entries = list(
-            QueueEntry.objects.filter(
-                institution=institution,
-                status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED],
-            ).order_by("queue_number")
-        )
-
-        if not active_entries:
-            return Response(
-                {
-                    "institution_id": institution.id,
-                    "message": "No active queue entries to simulate.",
-                }
-            )
-
         with transaction.atomic():
+            try:
+                institution = Institution.objects.select_for_update().get(
+                    pk=institution_id
+                )
+            except Institution.DoesNotExist:
+                return Response(
+                    {"detail": "Institution not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            active_entries = list(
+                QueueEntry.objects.select_for_update()
+                .filter(
+                    institution=institution,
+                    status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED],
+                )
+                .order_by("queue_number")
+            )
+
+            if not active_entries:
+                return Response(
+                    {
+                        "institution_id": institution.id,
+                        "message": "No active queue entries to simulate.",
+                    }
+                )
+
             current_serving = max(
                 entry.current_serving_number for entry in active_entries
             )
             highest_queue_number = max(entry.queue_number for entry in active_entries)
             increment = random.choice([0, 1, 1, 1, 2]) if randomize else 1
-            new_current_serving = min(current_serving + increment, highest_queue_number)
+            capped_current_serving = min(
+                current_serving + increment,
+                highest_queue_number,
+            )
+            new_current_serving = max(current_serving, capped_current_serving)
 
             QueueEntry.objects.filter(
                 institution=institution,
