@@ -1,7 +1,4 @@
-from django.db.models import Max
 from rest_framework import serializers
-
-from mock_api.models import Institution
 
 from .models import QueueEntry
 
@@ -52,10 +49,3 @@ class InstitutionQueueEntrySerializer(serializers.ModelSerializer):
             "served_at",
             "expires_at",
         ]
-
-
-def get_next_queue_number_for_institution(institution: Institution) -> int:
-    latest = QueueEntry.objects.filter(institution=institution).aggregate(
-        value=Max("queue_number")
-    )["value"]
-    return (latest or 0) + 1

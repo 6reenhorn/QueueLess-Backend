@@ -156,6 +156,7 @@ class InstitutionQueueStatusView(APIView):
                 status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED]
             )
 
+        result_count = queryset.count()
         serialized_entries = InstitutionQueueEntrySerializer(queryset, many=True)
         return Response(
             {
@@ -171,7 +172,7 @@ class InstitutionQueueStatusView(APIView):
                     "status": status_filter or None,
                     "active_only": active_only,
                 },
-                "count": len(serialized_entries.data),
+                "count": result_count,
                 "results": serialized_entries.data,
             }
         )

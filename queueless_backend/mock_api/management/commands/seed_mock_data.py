@@ -179,7 +179,7 @@ class Command(BaseCommand):
                     institution=institution,
                     queue_number=queue_number,
                     current_serving_number=baseline_current_serving,
-                    phone_number=f"09{random.randint(10_000_000, 99_999_999)}",
+                    phone_number=f"09{random.randint(100_000_000, 999_999_999)}",
                     browser_push_opt_in=random.choice([True, False]),
                     near_turn_threshold=random.randint(2, 5),
                     near_turn_notified=status == QueueEntryStatus.NOTIFIED,
