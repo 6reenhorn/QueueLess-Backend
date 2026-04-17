@@ -1,7 +1,7 @@
 import random
 
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import ExpressionWrapper, F, IntegerField, Max, Value
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -113,6 +113,8 @@ class QueueEntryStatusView(APIView):
 
 
 class InstitutionQueueStatusView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
     def get(self, request, institution_id):
         try:
             institution = Institution.objects.get(pk=institution_id)
@@ -262,28 +264,32 @@ class QueueSimulateTickView(APIView):
                     near_turn_notified=False,
                     queue_number__gt=new_current_serving,
                 )
+                .annotate(
+                    people_ahead=ExpressionWrapper(
+                        F("queue_number") - Value(new_current_serving) - Value(1),
+                        output_field=IntegerField(),
+                    )
+                )
+                .filter(people_ahead__lte=F("near_turn_threshold"))
             )
 
             notified_count = 0
             for entry in near_turn_entries:
-                people_ahead = max(entry.queue_number - new_current_serving - 1, 0)
-                if people_ahead <= entry.near_turn_threshold:
-                    entry.status = QueueEntryStatus.NOTIFIED
-                    entry.near_turn_notified = True
-                    entry.save(
-                        update_fields=["status", "near_turn_notified", "updated_at"]
-                    )
-                    notified_count += 1
-                    Notification.objects.create(
-                        queue_entry=entry,
-                        channel=Notification.Channel.SYSTEM,
-                        event_type=Notification.EventType.NEAR_TURN,
-                        message=(
-                            f"Queue #{entry.queue_number}: please prepare, "
-                            f"{people_ahead} ahead of you."
-                        ),
-                        delivered=True,
-                    )
+                people_ahead = entry.people_ahead
+                entry.status = QueueEntryStatus.NOTIFIED
+                entry.near_turn_notified = True
+                entry.save(update_fields=["status", "near_turn_notified", "updated_at"])
+                notified_count += 1
+                Notification.objects.create(
+                    queue_entry=entry,
+                    channel=Notification.Channel.SYSTEM,
+                    event_type=Notification.EventType.NEAR_TURN,
+                    message=(
+                        f"Queue #{entry.queue_number}: please prepare, "
+                        f"{people_ahead} ahead of you."
+                    ),
+                    delivered=True,
+                )
 
         return Response(
             {
