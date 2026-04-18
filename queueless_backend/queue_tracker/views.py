@@ -265,17 +265,17 @@ class QueueSimulateTickView(APIView):
                     queue_number__gt=new_current_serving,
                 )
                 .annotate(
-                    people_ahead=ExpressionWrapper(
+                    people_ahead_calc=ExpressionWrapper(
                         F("queue_number") - Value(new_current_serving) - Value(1),
                         output_field=IntegerField(),
                     )
                 )
-                .filter(people_ahead__lte=F("near_turn_threshold"))
+                .filter(people_ahead_calc__lte=F("near_turn_threshold"))
             )
 
             notified_count = 0
             for entry in near_turn_entries:
-                people_ahead = entry.people_ahead
+                people_ahead = entry.people_ahead_calc
                 entry.status = QueueEntryStatus.NOTIFIED
                 entry.near_turn_notified = True
                 entry.save(update_fields=["status", "near_turn_notified", "updated_at"])

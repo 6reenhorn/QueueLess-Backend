@@ -9,7 +9,11 @@ class QueueJoinSerializer(serializers.Serializer):
         max_length=20, required=False, allow_blank=True
     )
     browser_push_opt_in = serializers.BooleanField(default=False)
-    near_turn_threshold = serializers.IntegerField(min_value=1, max_value=10, default=3)
+    near_turn_threshold = serializers.IntegerField(
+        min_value=1,
+        max_value=10,
+        default=3,
+    )
 
 
 class QueueEntryStatusSerializer(serializers.ModelSerializer):

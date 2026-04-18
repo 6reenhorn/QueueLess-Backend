@@ -40,7 +40,7 @@ INSTITUTION_SEED_DATA = [
         "address": "Makati City",
     },
     {
-        "name": ("Al-Amanah Islamic Investment Bank of the Philippines"),
+        "name": "Al-Amanah Islamic Investment Bank of the Philippines",
         "institution_type": Institution.InstitutionType.BANK,
         "address": "Makati City",
     },
