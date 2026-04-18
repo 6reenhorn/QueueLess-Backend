@@ -178,8 +178,9 @@ class InstitutionQueueStatusView(APIView):
                 status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED]
             )
 
-        result_count = queryset.count()
-        serialized_entries = InstitutionQueueEntrySerializer(queryset, many=True)
+        entries = list(queryset)
+        result_count = len(entries)
+        serialized_entries = InstitutionQueueEntrySerializer(entries, many=True)
         return Response(
             {
                 "institution": {
@@ -245,12 +246,16 @@ class QueueSimulateTickView(APIView):
                 entry.current_serving_number for entry in active_entries
             )
             highest_queue_number = max(entry.queue_number for entry in active_entries)
+            clamped_current_serving = min(current_serving, highest_queue_number)
             increment = random.choice([0, 1, 1, 1, 2]) if randomize else 1
             capped_current_serving = min(
-                current_serving + increment,
+                clamped_current_serving + increment,
                 highest_queue_number,
             )
-            new_current_serving = max(current_serving, capped_current_serving)
+            new_current_serving = max(
+                clamped_current_serving,
+                capped_current_serving,
+            )
 
             QueueEntry.objects.filter(
                 institution=institution,
@@ -266,16 +271,24 @@ class QueueSimulateTickView(APIView):
                 )
             )
 
-            for entry in served_entries:
-                entry.status = QueueEntryStatus.SERVED
-                entry.served_at = now
-                entry.save(update_fields=["status", "served_at", "updated_at"])
-                Notification.objects.create(
-                    queue_entry=entry,
-                    channel=Notification.Channel.SYSTEM,
-                    event_type=Notification.EventType.TURN_CALLED,
-                    message=f"Queue #{entry.queue_number} is now being served.",
-                    delivered=True,
+            if served_entries:
+                served_entry_ids = [entry.id for entry in served_entries]
+                QueueEntry.objects.filter(pk__in=served_entry_ids).update(
+                    status=QueueEntryStatus.SERVED,
+                    served_at=now,
+                    updated_at=now,
+                )
+                Notification.objects.bulk_create(
+                    [
+                        Notification(
+                            queue_entry=entry,
+                            channel=Notification.Channel.SYSTEM,
+                            event_type=Notification.EventType.TURN_CALLED,
+                            message=f"Queue #{entry.queue_number} is now being served.",
+                            delivered=True,
+                        )
+                        for entry in served_entries
+                    ]
                 )
 
             near_turn_entries = list(
@@ -294,23 +307,29 @@ class QueueSimulateTickView(APIView):
                 .filter(people_ahead_calc__lte=F("near_turn_threshold"))
             )
 
-            notified_count = 0
-            for entry in near_turn_entries:
-                people_ahead = entry.people_ahead_calc
-                entry.status = QueueEntryStatus.NOTIFIED
-                entry.near_turn_notified = True
-                entry.save(update_fields=["status", "near_turn_notified", "updated_at"])
-                notified_count += 1
-                Notification.objects.create(
-                    queue_entry=entry,
-                    channel=Notification.Channel.SYSTEM,
-                    event_type=Notification.EventType.NEAR_TURN,
-                    message=(
-                        f"Queue #{entry.queue_number}: please prepare, "
-                        f"{people_ahead} ahead of you."
-                    ),
-                    delivered=True,
+            if near_turn_entries:
+                notified_entry_ids = [entry.id for entry in near_turn_entries]
+                QueueEntry.objects.filter(pk__in=notified_entry_ids).update(
+                    status=QueueEntryStatus.NOTIFIED,
+                    near_turn_notified=True,
+                    updated_at=now,
                 )
+                Notification.objects.bulk_create(
+                    [
+                        Notification(
+                            queue_entry=entry,
+                            channel=Notification.Channel.SYSTEM,
+                            event_type=Notification.EventType.NEAR_TURN,
+                            message=(
+                                f"Queue #{entry.queue_number}: please prepare, "
+                                f"{entry.people_ahead_calc} ahead of you."
+                            ),
+                            delivered=True,
+                        )
+                        for entry in near_turn_entries
+                    ]
+                )
+            notified_count = len(near_turn_entries)
 
         return Response(
             {
