@@ -15,9 +15,16 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
 ]
+
+if settings.ENABLE_MOCK_API:
+    urlpatterns += [
+        path("api/", include("mock_api.urls")),
+        path("api/queue/", include("queue_tracker.urls")),
+    ]
