@@ -18,7 +18,24 @@ from .serializers import (
 )
 
 
+def parse_bool_query_param(value, default: bool = True) -> bool:
+    if value is None:
+        return default
+
+    normalized_value = str(value).strip().lower()
+    truthy_values = {"1", "true", "t", "yes", "y", "on"}
+    falsy_values = {"0", "false", "f", "no", "n", "off"}
+
+    if normalized_value in truthy_values:
+        return True
+    if normalized_value in falsy_values:
+        return False
+    return default
+
+
 class QueueJoinView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = QueueJoinSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -99,6 +116,8 @@ class QueueJoinView(APIView):
 
 
 class QueueEntryStatusView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, session_id):
         try:
             entry = QueueEntry.objects.get(session_id=session_id)
@@ -125,8 +144,9 @@ class InstitutionQueueStatusView(APIView):
             )
 
         status_filter = request.query_params.get("status", "").strip()
-        active_only = (
-            str(request.query_params.get("active_only", "true")).lower() != "false"
+        active_only = parse_bool_query_param(
+            request.query_params.get("active_only"),
+            default=True,
         )
 
         queryset = QueueEntry.objects.filter(institution=institution).order_by(
@@ -188,8 +208,9 @@ class QueueSimulateTickView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, institution_id):
-        randomize = (
-            str(request.query_params.get("randomize", "true")).lower() != "false"
+        randomize = parse_bool_query_param(
+            request.query_params.get("randomize"),
+            default=True,
         )
 
         with transaction.atomic():
