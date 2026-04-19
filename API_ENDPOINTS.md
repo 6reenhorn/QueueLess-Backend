@@ -47,6 +47,9 @@ For query params that accept boolean values (for example `active_only`, `randomi
 - truthy: `1`, `true`, `t`, `yes`, `y`, `on`
 - falsy: `0`, `false`, `f`, `no`, `n`, `off`
 
+- any other value falls back silently to the parameter's default value; the backend does not return `400 Bad Request` for unrecognized boolean-like input
+- defaults are endpoint-specific; for example, `active_only` and `randomize` currently fall back to `true`
+
 ## Endpoint Contracts
 
 ## GET /api/institutions/
@@ -251,8 +254,10 @@ Admin only (`IsAdminUser`)
 
 ### Query params
 
-- `status` (optional, comma-separated queue statuses)
-- `active_only` (optional boolean, default `true`)
+- `status` (optional, comma-separated queue statuses; when provided, this filter takes precedence and `active_only` is ignored)
+- `active_only` (optional boolean, default `true` when `status` is not provided)
+
+If both `status` and `active_only` are provided, the backend applies `status` filtering and does not combine it with `active_only`.
 
 ### Example requests
 

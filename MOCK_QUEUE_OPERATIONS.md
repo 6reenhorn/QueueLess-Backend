@@ -4,7 +4,7 @@ This guide explains how to use the mock institution and queue data in the QueueL
 
 ## What The Mock Data Does
 
-- The institution list is simulated because there is no real institutions API connected yet.
+- The institution list is simulated because there is no real institution API connected yet.
 - Queue entries are stored in the database so the frontend can query stable state.
 - Queue movement does not happen automatically in the background.
 - Queue progression happens when an admin calls the simulation endpoint.
@@ -59,10 +59,12 @@ This is what moves the queue forward, marks entries as served, and sends near-tu
 
 No, not by itself.
 
-The queue only advances when:
+Queue state can change in two different ways:
 
-- a user joins the queue, which creates a new entry, or
-- an admin triggers the simulation endpoint to simulate a queue tick.
+- when a user joins the queue, a new queue entry is created, and
+- when an admin triggers the simulation endpoint to simulate a queue tick, the queue moves forward.
+
+Only the simulation endpoint advances the current serving state, marks entries as served, and sends near-turn notifications.
 
 If the frontend wants live-looking updates, it should poll the status endpoint on an interval or refresh after a simulate tick is triggered.
 
@@ -80,6 +82,6 @@ If the frontend wants live-looking updates, it should poll the status endpoint o
 
 ## Notes
 
-- The data is intentionally mock-only until a real institutions provider is available.
+- The data is intentionally mock-only until a real institution data provider is available.
 - The queue is suitable for frontend demos, testing, and walkthroughs.
 - For production-style behavior, replace the simulation flow with a real queue source and real operational triggers.
