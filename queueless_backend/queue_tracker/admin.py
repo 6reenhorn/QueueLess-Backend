@@ -11,6 +11,8 @@ class QueueEntryAdmin(admin.ModelAdmin):
         "current_serving_number",
         "status",
         "near_turn_notified",
+        "turn_called_at",
+        "checked_in_at",
         "issued_at",
     )
     list_filter = ("institution", "status", "near_turn_notified")

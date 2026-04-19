@@ -31,7 +31,7 @@ If disabled, these routes are not exposed.
 | PATCH | `/api/queue/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | List queue entries for one institution | Medium to high |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advance queue state and generate notifications | Medium |
-| POST | `/api/queue/auto-tick/` | Admin only | Trigger one hybrid tick pass across active institutions | Low to medium |
+| POST | `/api/queue/auto-tick/` | Admin only | Trigger one hybrid tick pass across institutions with active queue entries | Low to medium |
 
 ## Data Types and Enums
 
@@ -537,6 +537,8 @@ Hybrid mode is designed to avoid a paid always-on worker:
 - Request-driven: `/api/queue/entries/{session_id}/status/` and `/api/queue/entries/{session_id}/notifications/` may trigger throttled auto-ticks.
 - Scheduled: a periodic cron ping to `/api/queue/auto-tick/` keeps queues progressing during low traffic.
 - Safety: a per-institution lock + interval throttle helps prevent duplicate ticks under concurrent requests.
+
+For multi-instance deployments, configure a shared cache backend via `CACHE_URL` (for example Redis) so lock/throttle coordination works across processes and instances.
 
 ## Operational Guidance
 

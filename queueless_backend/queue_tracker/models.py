@@ -7,12 +7,17 @@ from django.db.models import Q
 class QueueEntryStatus(models.TextChoices):
     WAITING = "waiting", "Waiting"
     NOTIFIED = "notified", "Notified"
+    SERVING = "serving", "Serving"
     SERVED = "served", "Served"
     EXPIRED = "expired", "Expired"
     CANCELLED = "cancelled", "Cancelled"
 
 
-ACTIVE_QUEUE_STATUSES = (QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED)
+ACTIVE_QUEUE_STATUSES = (
+    QueueEntryStatus.WAITING,
+    QueueEntryStatus.NOTIFIED,
+    QueueEntryStatus.SERVING,
+)
 
 
 class QueueEntry(models.Model):
@@ -37,6 +42,8 @@ class QueueEntry(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     served_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    turn_called_at = models.DateTimeField(null=True, blank=True)
+    checked_in_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["institution_id", "queue_number"]

@@ -188,10 +188,45 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-QUEUE_AUTO_TICK_INTERVAL_SECONDS = int(
-    os.getenv("QUEUE_AUTO_TICK_INTERVAL_SECONDS", "15")
-)
+cache_url = os.getenv("CACHE_URL")
+if cache_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": cache_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "queueless-default-cache",
+        }
+    }
+
+try:
+    QUEUE_AUTO_TICK_INTERVAL_SECONDS = int(
+        os.getenv("QUEUE_AUTO_TICK_INTERVAL_SECONDS", "15")
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        "QUEUE_AUTO_TICK_INTERVAL_SECONDS must be an integer."
+    ) from exc
+
+if QUEUE_AUTO_TICK_INTERVAL_SECONDS < 1:
+    raise ImproperlyConfigured("QUEUE_AUTO_TICK_INTERVAL_SECONDS must be at least 1.")
+
 QUEUE_AUTO_TICK_RANDOMIZE = env_bool("QUEUE_AUTO_TICK_RANDOMIZE", default=True)
+
+try:
+    QUEUE_GRACE_PERIOD_SECONDS = int(os.getenv("QUEUE_GRACE_PERIOD_SECONDS", "180"))
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        "QUEUE_GRACE_PERIOD_SECONDS must be an integer."
+    ) from exc
+
+if QUEUE_GRACE_PERIOD_SECONDS < 1:
+    raise ImproperlyConfigured("QUEUE_GRACE_PERIOD_SECONDS must be at least 1.")
 
 # Development-friendly in-memory channel layer.
 CHANNEL_LAYERS = {

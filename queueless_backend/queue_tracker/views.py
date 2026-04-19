@@ -16,6 +16,8 @@ from .serializers import (
 )
 from .services import (
     auto_tick_active_institutions,
+    check_in_serving_entry,
+    expire_stale_serving_entries,
     maybe_auto_tick_institution,
     simulate_queue_tick_for_institution,
 )
@@ -115,12 +117,41 @@ class QueueEntryStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        maybe_auto_tick_institution(
+        expire_stale_serving_entries(
+            institution_id=entry.institution_id,
+            grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
+        )
+
+        tick_result = maybe_auto_tick_institution(
             institution_id=entry.institution_id,
             interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
             randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+            grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
         )
-        entry.refresh_from_db()
+        if tick_result is not None:
+            entry.refresh_from_db()
+        else:
+            entry.refresh_from_db()
+
+        serializer = QueueEntryStatusSerializer(entry)
+        return Response(serializer.data)
+
+
+class QueueEntryCheckInView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def patch(self, request, session_id):
+        entry, error = check_in_serving_entry(session_id)
+        if error:
+            if entry is None and error == "Queue entry not found.":
+                return Response(
+                    {"detail": error},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            return Response(
+                {"detail": error},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         serializer = QueueEntryStatusSerializer(entry)
         return Response(serializer.data)
@@ -239,5 +270,6 @@ class QueueAutoTickView(APIView):
             interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
             randomize=randomize,
             force=force,
+            grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
         )
         return Response(result)

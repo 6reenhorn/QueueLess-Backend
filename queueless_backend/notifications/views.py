@@ -27,12 +27,6 @@ class QueueEntryNotificationListView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        maybe_auto_tick_institution(
-            institution_id=queue_entry.institution_id,
-            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
-            randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
-        )
-
         delivered_filter_raw = request.query_params.get("delivered")
         delivered_filter = parse_bool_query_param_strict(delivered_filter_raw)
         if delivered_filter is INVALID_BOOLEAN_QUERY_VALUE:
@@ -73,6 +67,12 @@ class QueueEntryNotificationListView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             queryset = queryset.filter(event_type=event_type_filter)
+
+        maybe_auto_tick_institution(
+            institution_id=queue_entry.institution_id,
+            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+            randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+        )
 
         notifications = list(queryset[:limit])
         serializer = NotificationSerializer(notifications, many=True)

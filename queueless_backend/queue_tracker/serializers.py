@@ -32,6 +32,8 @@ class QueueEntryStatusSerializer(serializers.ModelSerializer):
             "near_turn_notified",
             "issued_at",
             "updated_at",
+            "turn_called_at",
+            "checked_in_at",
             "people_ahead",
         ]
 
@@ -53,4 +55,6 @@ class InstitutionQueueEntrySerializer(serializers.ModelSerializer):
             "updated_at",
             "served_at",
             "expires_at",
+            "turn_called_at",
+            "checked_in_at",
         ]

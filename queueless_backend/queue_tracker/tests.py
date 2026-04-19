@@ -1,10 +1,18 @@
+from datetime import timedelta
+
+from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 
 from mock_api.models import Institution
 from notifications.models import Notification
 
 from .models import QueueEntry, QueueEntryStatus
-from .services import simulate_queue_tick_for_institution
+from .services import (
+    check_in_serving_entry,
+    maybe_auto_tick_institution,
+    simulate_queue_tick_for_institution,
+)
 
 
 class QueueTrackerSmokeTest(SimpleTestCase):
@@ -49,7 +57,7 @@ class QueueTickServiceTests(TestCase):
         self.assertEqual(result["served_count"], 0)
         self.assertEqual(result["notified_count"], 0)
 
-    def test_tick_advances_and_notifies(self):
+    def test_tick_advances_and_transitions_to_serving(self):
         waiting_entry = QueueEntry.objects.create(
             institution=self.institution,
             queue_number=5,
@@ -74,9 +82,13 @@ class QueueTickServiceTests(TestCase):
 
         self.assertEqual(result["increment"], 1)
         self.assertEqual(result["current_serving_number"], 5)
-        self.assertEqual(result["served_count"], 1)
+        self.assertEqual(result["newly_serving_count"], 1)
         self.assertEqual(result["notified_count"], 1)
-        self.assertEqual(waiting_entry.status, QueueEntryStatus.SERVED)
+
+        # Should be SERVING, not SERVED
+        self.assertEqual(waiting_entry.status, QueueEntryStatus.SERVING)
+        self.assertIsNotNone(waiting_entry.turn_called_at)
+
         self.assertEqual(
             waiting_entry_to_notify.status,
             QueueEntryStatus.NOTIFIED,
@@ -87,15 +99,118 @@ class QueueTickServiceTests(TestCase):
             event_type=Notification.EventType.TURN_CALLED,
             delivered=False,
         )
-        near_turn_notifications = Notification.objects.filter(
-            queue_entry=waiting_entry_to_notify,
-            event_type=Notification.EventType.NEAR_TURN,
-            delivered=False,
+        self.assertEqual(turn_called_notifications.count(), 1)
+        self.assertIn("it's your turn!", turn_called_notifications[0].message)
+
+    def test_checked_in_entry_served_on_next_tick(self):
+        serving_entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=5,
+            status=QueueEntryStatus.SERVING,
+            turn_called_at=timezone.now(),
+            checked_in_at=timezone.now(),
         )
 
-        self.assertEqual(turn_called_notifications.count(), 1)
-        self.assertEqual(near_turn_notifications.count(), 1)
-        self.assertIn(
-            "Queue #5 is now being served.", turn_called_notifications[0].message
+        result = simulate_queue_tick_for_institution(
+            self.institution.id, randomize=False
         )
-        self.assertIn("please prepare", near_turn_notifications[0].message)
+
+        serving_entry.refresh_from_db()
+        self.assertEqual(serving_entry.status, QueueEntryStatus.SERVED)
+        self.assertEqual(result["served_count"], 1)
+
+    def test_expired_entries_skipped_on_next_tick(self):
+        # Grace period is 180s by default
+        expired_serving = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=5,
+            status=QueueEntryStatus.SERVING,
+            turn_called_at=timezone.now() - timedelta(seconds=200),
+            checked_in_at=None,
+        )
+
+        result = simulate_queue_tick_for_institution(
+            self.institution.id, randomize=False
+        )
+
+        expired_serving.refresh_from_db()
+        self.assertEqual(expired_serving.status, QueueEntryStatus.EXPIRED)
+        self.assertEqual(result["expired_count"], 1)
+
+        expiry_notifications = Notification.objects.filter(
+            queue_entry=expired_serving,
+            event_type=Notification.EventType.SESSION_EXPIRED,
+        )
+        self.assertEqual(expiry_notifications.count(), 1)
+
+
+class QueueAutoTickServiceTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.active_institution = Institution.objects.create(
+            name="Active Office",
+            institution_type=Institution.InstitutionType.GOVERNMENT,
+            status=Institution.Status.OPEN,
+            is_active=True,
+        )
+
+    def test_maybe_auto_tick_skips_within_interval(self):
+        QueueEntry.objects.create(
+            institution=self.active_institution,
+            queue_number=6,
+            current_serving_number=5,
+            status=QueueEntryStatus.WAITING,
+        )
+
+        first_result = maybe_auto_tick_institution(
+            institution_id=self.active_institution.id,
+            interval_seconds=60,
+            randomize=False,
+        )
+        second_result = maybe_auto_tick_institution(
+            institution_id=self.active_institution.id,
+            interval_seconds=60,
+            randomize=False,
+        )
+
+        self.assertIsNotNone(first_result)
+        self.assertIsNone(second_result)
+
+
+class QueueCheckInTests(TestCase):
+    def setUp(self):
+        self.institution = Institution.objects.create(
+            name="Test Office",
+            institution_type=Institution.InstitutionType.GOVERNMENT,
+            status=Institution.Status.OPEN,
+            is_active=True,
+        )
+
+    def test_check_in_success(self):
+        entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=5,
+            status=QueueEntryStatus.SERVING,
+            turn_called_at=timezone.now(),
+        )
+
+        updated_entry, error = check_in_serving_entry(entry.session_id)
+
+        self.assertIsNone(error)
+        self.assertIsNotNone(updated_entry.checked_in_at)
+
+    def test_check_in_invalid_status(self):
+        entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=4,
+            status=QueueEntryStatus.WAITING,
+        )
+
+        updated_entry, error = check_in_serving_entry(entry.session_id)
+
+        self.assertIsNone(updated_entry)
+        self.assertIn("Cannot check in", error)
