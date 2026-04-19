@@ -53,12 +53,14 @@ def simulate_queue_tick_for_institution(
         )
         new_current_serving = max(clamped_current_serving, capped_current_serving)
 
+        now = timezone.now()
         QueueEntry.objects.filter(
             institution=institution,
             status__in=ACTIVE_QUEUE_STATUSES,
-        ).update(current_serving_number=new_current_serving)
-
-        now = timezone.now()
+        ).update(
+            current_serving_number=new_current_serving,
+            updated_at=now,
+        )
         served_entries = list(
             QueueEntry.objects.filter(
                 institution=institution,
