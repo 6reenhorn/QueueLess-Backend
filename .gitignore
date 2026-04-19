@@ -3,3 +3,6 @@
 # Python cache/bytecode
 __pycache__/
 *.py[cod]
+
+# Django collectstatic output
+queueless_backend/staticfiles/
