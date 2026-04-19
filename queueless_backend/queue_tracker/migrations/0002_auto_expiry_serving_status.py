@@ -6,32 +6,47 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('mock_api', '0002_institution_address_institution_status'),
-        ('queue_tracker', '0001_initial'),
+        ("mock_api", "0002_institution_address_institution_status"),
+        ("queue_tracker", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='queueentry',
-            name='uniq_active_queue_number_per_institution',
+            model_name="queueentry",
+            name="uniq_active_queue_number_per_institution",
         ),
         migrations.AddField(
-            model_name='queueentry',
-            name='checked_in_at',
+            model_name="queueentry",
+            name="checked_in_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='queueentry',
-            name='turn_called_at',
+            model_name="queueentry",
+            name="turn_called_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='queueentry',
-            name='status',
-            field=models.CharField(choices=[('waiting', 'Waiting'), ('notified', 'Notified'), ('serving', 'Serving'), ('served', 'Served'), ('expired', 'Expired'), ('cancelled', 'Cancelled')], default='waiting', max_length=20),
+            model_name="queueentry",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("waiting", "Waiting"),
+                    ("notified", "Notified"),
+                    ("serving", "Serving"),
+                    ("served", "Served"),
+                    ("expired", "Expired"),
+                    ("cancelled", "Cancelled"),
+                ],
+                default="waiting",
+                max_length=20,
+            ),
         ),
         migrations.AddConstraint(
-            model_name='queueentry',
-            constraint=models.UniqueConstraint(condition=models.Q(('status__in', ('waiting', 'notified', 'serving'))), fields=('institution', 'queue_number'), name='uniq_active_queue_number_per_institution'),
+            model_name="queueentry",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("status__in", ("waiting", "notified", "serving"))),
+                fields=("institution", "queue_number"),
+                name="uniq_active_queue_number_per_institution",
+            ),
         ),
     ]
