@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from queue_tracker.models import QueueEntry
 from queue_tracker.query_params import (
     INVALID_BOOLEAN_QUERY_VALUE,
+    VALID_BOOLEAN_QUERY_VALUES,
     parse_bool_query_param_strict,
 )
 
@@ -30,20 +31,7 @@ class QueueEntryNotificationListView(APIView):
             return Response(
                 {
                     "detail": "Invalid delivered filter value provided.",
-                    "valid_values": [
-                        "1",
-                        "0",
-                        "true",
-                        "false",
-                        "t",
-                        "f",
-                        "yes",
-                        "no",
-                        "y",
-                        "n",
-                        "on",
-                        "off",
-                    ],
+                    "valid_values": list(VALID_BOOLEAN_QUERY_VALUES),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

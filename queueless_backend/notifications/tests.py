@@ -74,6 +74,31 @@ class NotificationApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("valid_event_types", response.data)
 
+    def test_list_notifications_invalid_delivered_filter(self):
+        response = self.client.get(
+            (
+                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
+                "?delivered=maybe"
+            )
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("valid_values", response.data)
+
+    def test_list_notifications_invalid_limit(self):
+        response = self.client.get(
+            (
+                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
+                "?limit=abc"
+            )
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["detail"],
+            "Query parameter 'limit' must be an integer.",
+        )
+
     def test_acknowledge_notification(self):
         response = self.client.patch(
             (

@@ -1,5 +1,6 @@
 TRUTHY_BOOLEAN_VALUES = {"1", "true", "t", "yes", "y", "on"}
 FALSY_BOOLEAN_VALUES = {"0", "false", "f", "no", "n", "off"}
+VALID_BOOLEAN_QUERY_VALUES = tuple(sorted(TRUTHY_BOOLEAN_VALUES | FALSY_BOOLEAN_VALUES))
 INVALID_BOOLEAN_QUERY_VALUE = object()
 
 

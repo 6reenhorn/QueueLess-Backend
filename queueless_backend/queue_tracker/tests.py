@@ -31,6 +31,24 @@ class QueueTickServiceTests(TestCase):
         self.assertEqual(result["notified_count"], 0)
         self.assertIn("message", result)
 
+    def test_tick_with_no_active_entries_uses_last_known_serving_number(self):
+        QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=4,
+            current_serving_number=3,
+            near_turn_threshold=2,
+            status=QueueEntryStatus.SERVED,
+        )
+
+        result = simulate_queue_tick_for_institution(
+            self.institution.id,
+            randomize=False,
+        )
+
+        self.assertEqual(result["current_serving_number"], 3)
+        self.assertEqual(result["served_count"], 0)
+        self.assertEqual(result["notified_count"], 0)
+
     def test_tick_advances_and_notifies(self):
         waiting_entry = QueueEntry.objects.create(
             institution=self.institution,

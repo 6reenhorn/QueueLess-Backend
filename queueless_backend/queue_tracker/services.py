@@ -1,7 +1,7 @@
 import random
 
 from django.db import transaction
-from django.db.models import ExpressionWrapper, F, IntegerField, Value
+from django.db.models import ExpressionWrapper, F, IntegerField, Max, Value
 from django.utils import timezone
 
 from mock_api.models import Institution
@@ -27,11 +27,17 @@ def simulate_queue_tick_for_institution(
         )
 
         if not active_entries:
+            last_known_serving_number = (
+                QueueEntry.objects.filter(institution=institution).aggregate(
+                    value=Max("current_serving_number")
+                )["value"]
+                or 0
+            )
             return {
                 "institution_id": institution.id,
                 "randomized": randomize,
                 "increment": 0,
-                "current_serving_number": 0,
+                "current_serving_number": last_known_serving_number,
                 "served_count": 0,
                 "notified_count": 0,
                 "message": "No active queue entries to simulate.",
