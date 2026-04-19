@@ -80,11 +80,12 @@ class Command(BaseCommand):
                         continue
 
                     self.stdout.write(
-                        "["
-                        f"{institution.id}] {institution.name}: "
-                        f"served={result['served_count']}, "
-                        f"notified={result['notified_count']}, "
-                        f"current_serving={result['current_serving_number']}"
+                        (
+                            f"[{institution.id}] {institution.name}: "
+                            f"served={result['served_count']}, "
+                            f"notified={result['notified_count']}, "
+                            f"current_serving={result['current_serving_number']}"
+                        )
                     )
 
             if once:
