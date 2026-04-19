@@ -33,7 +33,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class NotificationAcknowledgeSerializer(serializers.Serializer):
-    delivered = serializers.BooleanField(default=True)
+    delivered = serializers.BooleanField(required=True)
     external_reference = serializers.CharField(
         max_length=120,
         required=False,
