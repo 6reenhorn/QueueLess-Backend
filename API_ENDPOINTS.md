@@ -19,7 +19,7 @@ The institution records in this backend are simulated data until a real institut
 | POST | `/api/queue/join/` | Public | Creates a queue entry for an institution. | Low per request, but write-heavy under spikes. Uses row locking and retry logic to stay safe under concurrency. |
 | GET | `/api/queue/entries/{session_id}/status/` | Public | Returns the status of one queue entry. | Low. Single lookup by session ID. |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | Lists queue entries for one institution (defaults to active entries only). | Medium by default (`active_only=true`). Can become high when requesting full history or broad status filters. |
-| POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advances the queue and generates notifications. | Medium. Uses bulk updates and bulk inserts, so it stays efficient even when several entries move at once. |
+| POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advances the queue and generates notifications (`randomize=true` by default). | Medium. Uses bulk updates and bulk inserts, so it stays efficient even when several entries move at once. |
 
 ## Load Notes By Endpoint
 
@@ -52,6 +52,9 @@ Load is usually medium with the default active filter. It can become high if an 
 ### `POST /api/queue/institutions/{institution_id}/simulate-tick/`
 
 This endpoint is designed to stay efficient even when multiple entries need updates. Served and near-turn entries are handled with bulk operations, so the database cost is closer to a small fixed number of queries rather than one query per entry. The load is moderate, mainly because it still has to scan the institution's active queue state.
+
+Supported query params:
+- `randomize` (`true` by default): when `true`, advances by a random increment; when `false`, advances deterministically by one position.
 
 ## Practical Capacity Guidance
 
