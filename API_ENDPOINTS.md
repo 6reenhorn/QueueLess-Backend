@@ -15,6 +15,8 @@ Load notes are qualitative, not benchmark numbers. Actual capacity depends on de
 - Institution API base: `/api/institutions/`
 - Queue API base: `/api/queue/`
 
+The mock routes are controlled by `ENABLE_MOCK_API`. If that flag is disabled, these routes are not exposed.
+The institution records in this backend are simulated data until a real institution data provider is connected.
 Mock routes are controlled by `ENABLE_MOCK_API`.
 If disabled, these routes are not exposed.
 
