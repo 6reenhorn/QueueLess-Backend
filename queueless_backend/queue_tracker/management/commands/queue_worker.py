@@ -3,6 +3,7 @@ import os
 import time
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import close_old_connections
 
 from mock_api.models import Institution
 from queue_tracker.models import ACTIVE_QUEUE_STATUSES
@@ -16,7 +17,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--interval",
             type=int,
-            default=int(os.getenv("QUEUE_WORKER_INTERVAL_SECONDS", "15")),
+            default=None,
             help="Seconds to wait between worker cycles.",
         )
         parser.add_argument(
@@ -33,6 +34,15 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         interval = options["interval"]
+        if interval is None:
+            interval_from_env = os.getenv("QUEUE_WORKER_INTERVAL_SECONDS", "15")
+            try:
+                interval = int(interval_from_env)
+            except ValueError as exc:
+                raise CommandError(
+                    "QUEUE_WORKER_INTERVAL_SECONDS must be an integer."
+                ) from exc
+
         if interval < 1:
             raise CommandError("--interval must be at least 1 second.")
 
@@ -47,6 +57,8 @@ class Command(BaseCommand):
         )
 
         while True:
+            close_old_connections()
+
             active_institutions = (
                 Institution.objects.filter(
                     is_active=True,
@@ -94,4 +106,5 @@ class Command(BaseCommand):
                 )
                 return
 
+            close_old_connections()
             time.sleep(interval)

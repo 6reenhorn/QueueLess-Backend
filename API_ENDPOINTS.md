@@ -498,7 +498,7 @@ Medium. Uses bulk updates and bulk notification inserts to keep simulation effic
 
 ### Notes
 
-This endpoint is the main source of notification creation in the current mock flow. It marks served entries, promotes near-turn entries to `notified`, and creates the corresponding notification rows.
+Notification creation in the current mock flow happens in the shared tick service, which is invoked by both this endpoint and the `queue_worker` management command. That shared logic marks served entries, promotes near-turn entries to `notified`, and creates the corresponding notification rows.
 
 ## Operational Guidance
 

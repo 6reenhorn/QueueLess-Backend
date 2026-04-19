@@ -10,21 +10,6 @@ from .serializers import NotificationAcknowledgeSerializer, NotificationSerializ
 INVALID_BOOLEAN_QUERY_VALUE = object()
 
 
-def parse_bool_query_param(value, default: bool = False) -> bool:
-    if value is None:
-        return default
-
-    normalized_value = str(value).strip().lower()
-    truthy_values = {"1", "true", "t", "yes", "y", "on"}
-    falsy_values = {"0", "false", "f", "no", "n", "off"}
-
-    if normalized_value in truthy_values:
-        return True
-    if normalized_value in falsy_values:
-        return False
-    return default
-
-
 def parse_bool_query_param_strict(value):
     if value is None:
         return None
