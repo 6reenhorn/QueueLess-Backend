@@ -21,7 +21,7 @@ class NotificationApiTests(TestCase):
         self.queue_entry = QueueEntry.objects.create(
             institution=self.institution,
             queue_number=5,
-            current_serving_number=3,
+            current_serving_number=0,
             near_turn_threshold=2,
             status=QueueEntryStatus.NOTIFIED,
         )
