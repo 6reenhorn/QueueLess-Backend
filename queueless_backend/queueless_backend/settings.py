@@ -113,7 +113,7 @@ if IS_TEST_ENV:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "test_db.sqlite3",
+            "NAME": ":memory:",
         }
     }
 elif database_url:

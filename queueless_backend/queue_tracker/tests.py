@@ -1,6 +1,7 @@
 from django.test import SimpleTestCase, TestCase
 
 from mock_api.models import Institution
+from notifications.models import Notification
 
 from .models import QueueEntry, QueueEntryStatus
 from .services import simulate_queue_tick_for_institution
@@ -59,3 +60,21 @@ class QueueTickServiceTests(TestCase):
         self.assertEqual(result["notified_count"], 1)
         self.assertEqual(waiting_entry.status, QueueEntryStatus.SERVED)
         self.assertEqual(notified_entry.status, QueueEntryStatus.NOTIFIED)
+
+        turn_called_notifications = Notification.objects.filter(
+            queue_entry=waiting_entry,
+            event_type=Notification.EventType.TURN_CALLED,
+            delivered=True,
+        )
+        near_turn_notifications = Notification.objects.filter(
+            queue_entry=notified_entry,
+            event_type=Notification.EventType.NEAR_TURN,
+            delivered=True,
+        )
+
+        self.assertEqual(turn_called_notifications.count(), 1)
+        self.assertEqual(near_turn_notifications.count(), 1)
+        self.assertIn(
+            "Queue #5 is now being served.", turn_called_notifications[0].message
+        )
+        self.assertIn("please prepare", near_turn_notifications[0].message)

@@ -1,3 +1,4 @@
+import argparse
 import os
 import time
 
@@ -25,15 +26,9 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--randomize",
-            action="store_true",
+            action=argparse.BooleanOptionalAction,
             default=True,
             help="Use randomized increments when advancing the queue.",
-        )
-        parser.add_argument(
-            "--no-randomize",
-            action="store_false",
-            dest="randomize",
-            help="Advance queues by one step per cycle.",
         )
 
     def handle(self, *args, **options):
@@ -61,32 +56,37 @@ class Command(BaseCommand):
                 .order_by("id")
             )
 
-            if not active_institutions.exists():
-                self.stdout.write("No active institutions with queue entries.")
-            else:
-                for institution in active_institutions:
-                    try:
-                        result = simulate_queue_tick_for_institution(
-                            institution.id,
-                            randomize=randomize,
-                        )
-                    except Institution.DoesNotExist:
-                        continue
+            processed_any = False
+            for institution in active_institutions:
+                processed_any = True
+                try:
+                    result = simulate_queue_tick_for_institution(
+                        institution.id,
+                        randomize=randomize,
+                    )
+                except Institution.DoesNotExist:
+                    continue
 
-                    if result.get("message"):
-                        self.stdout.write(
-                            f"[{institution.id}] {institution.name}: {result['message']}"
-                        )
-                        continue
-
+                if result.get("message"):
                     self.stdout.write(
                         (
                             f"[{institution.id}] {institution.name}: "
-                            f"served={result['served_count']}, "
-                            f"notified={result['notified_count']}, "
-                            f"current_serving={result['current_serving_number']}"
+                            f"{result['message']}"
                         )
                     )
+                    continue
+
+                self.stdout.write(
+                    (
+                        f"[{institution.id}] {institution.name}: "
+                        f"served={result['served_count']}, "
+                        f"notified={result['notified_count']}, "
+                        f"current_serving={result['current_serving_number']}"
+                    )
+                )
+
+            if not processed_any:
+                self.stdout.write("No active institutions with queue entries.")
 
             if once:
                 self.stdout.write(

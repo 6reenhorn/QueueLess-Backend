@@ -10,7 +10,8 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     queue_number = serializers.IntegerField(
-        source="queue_entry.queue_number", read_only=True
+        source="queue_entry.queue_number",
+        read_only=True,
     )
 
     class Meta:

@@ -7,6 +7,8 @@ from queue_tracker.models import QueueEntry
 from .models import Notification
 from .serializers import NotificationAcknowledgeSerializer, NotificationSerializer
 
+INVALID_BOOLEAN_QUERY_VALUE = object()
+
 
 def parse_bool_query_param(value, default: bool = False) -> bool:
     if value is None:
@@ -23,6 +25,21 @@ def parse_bool_query_param(value, default: bool = False) -> bool:
     return default
 
 
+def parse_bool_query_param_strict(value):
+    if value is None:
+        return None
+
+    normalized_value = str(value).strip().lower()
+    truthy_values = {"1", "true", "t", "yes", "y", "on"}
+    falsy_values = {"0", "false", "f", "no", "n", "off"}
+
+    if normalized_value in truthy_values:
+        return True
+    if normalized_value in falsy_values:
+        return False
+    return INVALID_BOOLEAN_QUERY_VALUE
+
+
 class QueueEntryNotificationListView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -36,11 +53,28 @@ class QueueEntryNotificationListView(APIView):
             )
 
         delivered_filter_raw = request.query_params.get("delivered")
-        delivered_filter = (
-            parse_bool_query_param(delivered_filter_raw)
-            if delivered_filter_raw is not None
-            else None
-        )
+        delivered_filter = parse_bool_query_param_strict(delivered_filter_raw)
+        if delivered_filter is INVALID_BOOLEAN_QUERY_VALUE:
+            return Response(
+                {
+                    "detail": "Invalid delivered filter value provided.",
+                    "valid_values": [
+                        "1",
+                        "0",
+                        "true",
+                        "false",
+                        "t",
+                        "f",
+                        "yes",
+                        "no",
+                        "y",
+                        "n",
+                        "on",
+                        "off",
+                    ],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         event_type_filter = request.query_params.get("event_type", "").strip().lower()
         limit_raw = request.query_params.get("limit", "50").strip()
         try:
@@ -51,8 +85,10 @@ class QueueEntryNotificationListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        queryset = Notification.objects.filter(queue_entry=queue_entry).order_by(
-            "-sent_at"
+        queryset = (
+            Notification.objects.filter(queue_entry=queue_entry)
+            .select_related("queue_entry")
+            .order_by("-sent_at")
         )
 
         if delivered_filter is not None:
