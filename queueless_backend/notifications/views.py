@@ -3,26 +3,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from queue_tracker.models import QueueEntry
+from queue_tracker.query_params import (
+    INVALID_BOOLEAN_QUERY_VALUE,
+    parse_bool_query_param_strict,
+)
 
 from .models import Notification
 from .serializers import NotificationAcknowledgeSerializer, NotificationSerializer
-
-INVALID_BOOLEAN_QUERY_VALUE = object()
-
-
-def parse_bool_query_param_strict(value):
-    if value is None:
-        return None
-
-    normalized_value = str(value).strip().lower()
-    truthy_values = {"1", "true", "t", "yes", "y", "on"}
-    falsy_values = {"0", "false", "f", "no", "n", "off"}
-
-    if normalized_value in truthy_values:
-        return True
-    if normalized_value in falsy_values:
-        return False
-    return INVALID_BOOLEAN_QUERY_VALUE
 
 
 class QueueEntryNotificationListView(APIView):

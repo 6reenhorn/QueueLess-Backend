@@ -39,7 +39,7 @@ class QueueTickServiceTests(TestCase):
             near_turn_threshold=2,
             status=QueueEntryStatus.WAITING,
         )
-        notified_entry = QueueEntry.objects.create(
+        waiting_entry_to_notify = QueueEntry.objects.create(
             institution=self.institution,
             queue_number=6,
             current_serving_number=4,
@@ -52,14 +52,17 @@ class QueueTickServiceTests(TestCase):
         )
 
         waiting_entry.refresh_from_db()
-        notified_entry.refresh_from_db()
+        waiting_entry_to_notify.refresh_from_db()
 
         self.assertEqual(result["increment"], 1)
         self.assertEqual(result["current_serving_number"], 5)
         self.assertEqual(result["served_count"], 1)
         self.assertEqual(result["notified_count"], 1)
         self.assertEqual(waiting_entry.status, QueueEntryStatus.SERVED)
-        self.assertEqual(notified_entry.status, QueueEntryStatus.NOTIFIED)
+        self.assertEqual(
+            waiting_entry_to_notify.status,
+            QueueEntryStatus.NOTIFIED,
+        )
 
         turn_called_notifications = Notification.objects.filter(
             queue_entry=waiting_entry,
@@ -67,7 +70,7 @@ class QueueTickServiceTests(TestCase):
             delivered=True,
         )
         near_turn_notifications = Notification.objects.filter(
-            queue_entry=notified_entry,
+            queue_entry=waiting_entry_to_notify,
             event_type=Notification.EventType.NEAR_TURN,
             delivered=True,
         )

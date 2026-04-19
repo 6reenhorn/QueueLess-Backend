@@ -291,7 +291,7 @@ Status: `200 OK`
 
 ### Common errors
 
-- `400 Bad Request` for invalid `limit` or invalid `event_type`
+- `400 Bad Request` for invalid `limit`, invalid `event_type`, or invalid `delivered`
 - `404 Not Found` if the queue session does not exist
 
 ### Load note

@@ -71,7 +71,7 @@ If the frontend wants live-looking updates, it should poll the status endpoint o
 ## Admin Behavior
 
 - `GET /api/queue/institutions/{institution_id}/entries/` is admin only and shows queue entries for one institution.
-- `POST /api/queue/institutions/{institution_id}/simulate-tick/` is admin only and is the only route that advances the queue state.
+- `POST /api/queue/institutions/{institution_id}/simulate-tick/` is admin only and manually advances the queue state; the `queue_worker` management command can also advance the queue automatically.1dcf
 
 ## Worker Mode
 

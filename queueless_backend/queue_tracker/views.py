@@ -7,27 +7,13 @@ from rest_framework.views import APIView
 from mock_api.models import Institution
 
 from .models import QueueEntry, QueueEntryStatus
+from .query_params import parse_bool_query_param
 from .serializers import (
     InstitutionQueueEntrySerializer,
     QueueEntryStatusSerializer,
     QueueJoinSerializer,
 )
 from .services import simulate_queue_tick_for_institution
-
-
-def parse_bool_query_param(value, default: bool = True) -> bool:
-    if value is None:
-        return default
-
-    normalized_value = str(value).strip().lower()
-    truthy_values = {"1", "true", "t", "yes", "y", "on"}
-    falsy_values = {"0", "false", "f", "no", "n", "off"}
-
-    if normalized_value in truthy_values:
-        return True
-    if normalized_value in falsy_values:
-        return False
-    return default
 
 
 class QueueJoinView(APIView):
