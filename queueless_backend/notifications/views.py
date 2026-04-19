@@ -60,7 +60,7 @@ class QueueEntryNotificationListView(APIView):
         queryset = (
             Notification.objects.filter(queue_entry=queue_entry)
             .select_related("queue_entry")
-            .order_by("-sent_at")
+            .order_by("-sent_at", "-id")
         )
 
         if delivered_filter is not None:
@@ -105,7 +105,7 @@ class QueueEntryNotificationAcknowledgeView(APIView):
             )
 
         try:
-            notification = Notification.objects.get(
+            notification = Notification.objects.select_related("queue_entry").get(
                 id=notification_id,
                 queue_entry=queue_entry,
             )

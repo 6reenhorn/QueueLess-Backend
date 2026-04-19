@@ -321,7 +321,7 @@ Public
 
 ### Body fields
 
-- `delivered` (boolean, optional, default `true`)
+- `delivered` (boolean, required)
 - `external_reference` (string, optional, max 120)
 - `error_detail` (string, optional)
 

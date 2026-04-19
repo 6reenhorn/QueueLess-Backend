@@ -33,26 +33,29 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        interval = options["interval"]
-        if interval is None:
-            interval_from_env = os.getenv("QUEUE_WORKER_INTERVAL_SECONDS", "15")
-            try:
-                interval = int(interval_from_env)
-            except ValueError as exc:
-                raise CommandError(
-                    "QUEUE_WORKER_INTERVAL_SECONDS must be an integer."
-                ) from exc
-
-        if interval < 1:
-            raise CommandError("--interval must be at least 1 second.")
-
         once = options["once"]
         randomize = options["randomize"]
+        interval = options["interval"]
+
+        if not once:
+            if interval is None:
+                interval_from_env = os.getenv("QUEUE_WORKER_INTERVAL_SECONDS", "15")
+                try:
+                    interval = int(interval_from_env)
+                except ValueError as exc:
+                    raise CommandError(
+                        "QUEUE_WORKER_INTERVAL_SECONDS must be an integer."
+                    ) from exc
+
+            if interval < 1:
+                raise CommandError("--interval must be at least 1 second.")
+
+        interval_label = f"{interval}s" if interval is not None else "n/a"
 
         self.stdout.write(
             self.style.SUCCESS(
                 "Queue worker started "
-                f"(interval={interval}s, randomize={randomize}, once={once})."
+                f"(interval={interval_label}, randomize={randomize}, once={once})."
             )
         )
 
