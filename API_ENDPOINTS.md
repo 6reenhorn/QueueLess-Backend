@@ -256,7 +256,7 @@ Public
 
 ### Query params
 
-- `delivered` (optional boolean, filters notifications by delivery state)
+- `delivered` (optional boolean, filters notifications by delivery state; this parameter is parsed strictly, and invalid boolean-like values return `400 Bad Request` rather than silently falling back)
 - `event_type` (optional string, one of `near_turn`, `turn_called`, `session_expired`, `generic`)
 - `limit` (optional integer, defaults to `50`, maximum `100`)
 
@@ -499,6 +499,8 @@ Medium. Uses bulk updates and bulk notification inserts to keep simulation effic
 ### Notes
 
 Notification creation in the current mock flow happens in the shared tick service, which is invoked by both this endpoint and the `queue_worker` management command. That shared logic marks served entries, promotes near-turn entries to `notified`, and creates the corresponding notification rows.
+
+The response contract for this endpoint should follow the shared tick service output in all cases, including when there are no active entries to process. In particular, the "no active entries" response is not limited to a minimal `{ "institution_id": ..., "message": ... }` body; it includes the additional summary fields returned by the shared tick service as well.
 
 ## Operational Guidance
 
