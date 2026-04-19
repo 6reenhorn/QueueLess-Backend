@@ -101,6 +101,8 @@ explicitly required.
 
 The institution list used by these mock routes is simulated until a real institutions API is integrated.
 
+See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, poll, and advance the mock queue.
+
 ### 5) Run Migrations
 
 ```powershell
