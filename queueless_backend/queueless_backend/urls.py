@@ -27,4 +27,5 @@ if settings.ENABLE_MOCK_API:
     urlpatterns += [
         path("api/", include("mock_api.urls")),
         path("api/queue/", include("queue_tracker.urls")),
+        path("api/queue/", include("notifications.urls")),
     ]

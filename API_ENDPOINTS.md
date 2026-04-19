@@ -27,6 +27,8 @@ If disabled, these routes are not exposed.
 | GET | `/api/institutions/{id}/` | Public | Get one institution with queue summary fields | Low |
 | POST | `/api/queue/join/` | Public | Join queue for an institution | Low per call, write-heavy in spikes |
 | GET | `/api/queue/entries/{session_id}/status/` | Public | Get status for one queue session | Low |
+| GET | `/api/queue/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
+| PATCH | `/api/queue/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | List queue entries for one institution | Medium to high |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advance queue state and generate notifications | Medium |
 
@@ -242,6 +244,117 @@ Status: `200 OK`
 
 Low. Single lookup by session ID.
 
+## GET /api/queue/entries/{session_id}/notifications/
+
+### Access
+
+Public
+
+### Path params
+
+- `session_id` (UUID)
+
+### Query params
+
+- `delivered` (optional boolean, filters notifications by delivery state; this parameter is parsed strictly, and invalid boolean-like values return `400 Bad Request` rather than silently falling back)
+- `event_type` (optional string, one of `near_turn`, `turn_called`, `session_expired`, `generic`)
+- `limit` (optional integer, defaults to `50`, maximum `100`)
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "session_id": "0e78ab8f-1f05-4741-8d73-e2d3778e9a35",
+  "institution_id": 1,
+  "queue_number": 42,
+  "count": 2,
+  "results": [
+    {
+      "id": 15,
+      "session_id": "0e78ab8f-1f05-4741-8d73-e2d3778e9a35",
+      "institution_id": 1,
+      "queue_number": 42,
+      "channel": "system",
+      "event_type": "near_turn",
+      "message": "Queue #42: please prepare, 2 ahead of you.",
+      "delivered": false,
+      "external_reference": "",
+      "error_detail": "",
+      "sent_at": "2026-04-19T09:49:12.000000Z",
+      "updated_at": "2026-04-19T09:49:12.000000Z"
+    }
+  ]
+}
+```
+
+### Common errors
+
+- `400 Bad Request` for invalid `limit`, invalid `event_type`, or invalid `delivered`
+- `404 Not Found` if the queue session does not exist
+
+### Load note
+
+Low. This is a session-scoped lookup with optional filtering and a capped result size.
+
+## PATCH /api/queue/entries/{session_id}/notifications/{notification_id}/ack/
+
+### Access
+
+Public
+
+### Path params
+
+- `session_id` (UUID)
+- `notification_id` (integer)
+
+### Request body
+
+```json
+{
+  "delivered": true,
+  "external_reference": "push-abc-123",
+  "error_detail": ""
+}
+```
+
+### Body fields
+
+- `delivered` (boolean, required)
+- `external_reference` (string, optional, max 120)
+- `error_detail` (string, optional)
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "id": 15,
+  "session_id": "0e78ab8f-1f05-4741-8d73-e2d3778e9a35",
+  "institution_id": 1,
+  "queue_number": 42,
+  "channel": "system",
+  "event_type": "near_turn",
+  "message": "Queue #42: please prepare, 2 ahead of you.",
+  "delivered": true,
+  "external_reference": "push-abc-123",
+  "error_detail": "",
+  "sent_at": "2026-04-19T09:49:12.000000Z",
+  "updated_at": "2026-04-19T09:55:00.000000Z"
+}
+```
+
+### Common errors
+
+- `404 Not Found` if the queue session does not exist
+- `404 Not Found` if the notification does not belong to the provided queue session
+
+### Load note
+
+Low. Single-row update on a notification record.
+
 ## GET /api/queue/institutions/{institution_id}/entries/
 
 ### Access
@@ -382,6 +495,12 @@ Status: `200 OK`
 ### Load note
 
 Medium. Uses bulk updates and bulk notification inserts to keep simulation efficient as entries grow.
+
+### Notes
+
+Notification creation in the current mock flow happens in the shared tick service, which is invoked by both this endpoint and the `queue_worker` management command. That shared logic marks served entries, promotes near-turn entries to `notified`, and creates the corresponding notification rows.
+
+The response contract for this endpoint should follow the shared tick service output in all cases, including when there are no active entries to process. In particular, the "no active entries" response is not limited to a minimal `{ "institution_id": ..., "message": ... }` body; it includes the additional summary fields returned by the shared tick service as well.
 
 ## Operational Guidance
 
