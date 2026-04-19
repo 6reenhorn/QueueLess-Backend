@@ -73,12 +73,23 @@ If the frontend wants live-looking updates, it should poll the status endpoint o
 - `GET /api/queue/institutions/{institution_id}/entries/` is admin only and shows queue entries for one institution.
 - `POST /api/queue/institutions/{institution_id}/simulate-tick/` is admin only and is the only route that advances the queue state.
 
+## Worker Mode
+
+The mock queue can also be advanced by a backend worker process instead of only by manually calling the admin endpoint.
+
+- Run `python manage.py queue_worker` to start the worker loop.
+- The worker scans active institutions and applies the same tick logic as `simulate-tick`.
+- Use `--once` for a single pass during debugging.
+- Use `--interval <seconds>` to control how long the worker sleeps between passes.
+
+This is the closest path to a real-world queue simulation in the current stack because the backend, not the frontend, owns queue progression.
+
 ## Practical Workflow
 
 1. Seed the mock data.
 2. Open the frontend and join a queue.
-3. Poll the status endpoint to watch the user move from waiting to notified to served.
-4. Use the simulation endpoint whenever you want to advance the queue for testing.
+3. Poll the status and notifications endpoints to watch the user move from waiting to notified to served.
+4. Use the simulation endpoint for manual advancement, or run the worker for automatic backend-driven advancement.
 
 ## Notes
 

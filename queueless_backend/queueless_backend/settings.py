@@ -109,14 +109,21 @@ WSGI_APPLICATION = "queueless_backend.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 database_url = os.getenv("DATABASE_URL")
-if database_url:
+if IS_TEST_ENV:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test_db.sqlite3",
+        }
+    }
+elif database_url:
     try:
         DATABASES = {
             "default": dj_database_url.parse(database_url, conn_max_age=600),
         }
     except ValueError as exc:
         raise ImproperlyConfigured(f"DATABASE_URL is invalid: {exc}") from exc
-elif DEBUG or IS_TEST_ENV:
+elif DEBUG:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
