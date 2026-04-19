@@ -83,7 +83,7 @@ def simulate_queue_tick_for_institution(
                         channel=Notification.Channel.SYSTEM,
                         event_type=Notification.EventType.TURN_CALLED,
                         message=f"Queue #{entry.queue_number} is now being served.",
-                        delivered=True,
+                        delivered=False,
                     )
                     for entry in served_entries
                 ]
@@ -122,7 +122,7 @@ def simulate_queue_tick_for_institution(
                             f"Queue #{entry.queue_number}: please prepare, "
                             f"{entry.people_ahead_calc} ahead of you."
                         ),
-                        delivered=True,
+                        delivered=False,
                     )
                     for entry in near_turn_entries
                 ]

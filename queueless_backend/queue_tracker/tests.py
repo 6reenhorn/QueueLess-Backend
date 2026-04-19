@@ -85,12 +85,12 @@ class QueueTickServiceTests(TestCase):
         turn_called_notifications = Notification.objects.filter(
             queue_entry=waiting_entry,
             event_type=Notification.EventType.TURN_CALLED,
-            delivered=True,
+            delivered=False,
         )
         near_turn_notifications = Notification.objects.filter(
             queue_entry=waiting_entry_to_notify,
             event_type=Notification.EventType.NEAR_TURN,
-            delivered=True,
+            delivered=False,
         )
 
         self.assertEqual(turn_called_notifications.count(), 1)

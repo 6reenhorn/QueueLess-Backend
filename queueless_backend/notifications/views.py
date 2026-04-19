@@ -106,21 +106,17 @@ class QueueEntryNotificationAcknowledgeView(APIView):
         serializer = NotificationAcknowledgeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        update_fields = ["delivered", "updated_at"]
         notification.delivered = serializer.validated_data["delivered"]
         if "external_reference" in serializer.validated_data:
             notification.external_reference = serializer.validated_data[
                 "external_reference"
             ]
+            update_fields.append("external_reference")
         if "error_detail" in serializer.validated_data:
             notification.error_detail = serializer.validated_data["error_detail"]
-        notification.save(
-            update_fields=[
-                "delivered",
-                "external_reference",
-                "error_detail",
-                "updated_at",
-            ]
-        )
+            update_fields.append("error_detail")
+        notification.save(update_fields=update_fields)
 
         response_serializer = NotificationSerializer(notification)
         return Response(response_serializer.data)
