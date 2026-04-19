@@ -100,6 +100,7 @@ For deployed environments, set `ENABLE_MOCK_API=False` unless mock endpoints are
 explicitly required.
 
 The institution list used by these mock routes is simulated until a real institution API is integrated.
+For the full list of available endpoints and load-profile details, see [API_ENDPOINTS.md](./API_ENDPOINTS.md).
 
 ### 5) Run Migrations
 
