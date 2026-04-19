@@ -4,7 +4,6 @@ import time
 from django.core.management.base import BaseCommand, CommandError
 
 from mock_api.models import Institution
-
 from queue_tracker.models import ACTIVE_QUEUE_STATUSES
 from queue_tracker.services import simulate_queue_tick_for_institution
 
@@ -53,10 +52,14 @@ class Command(BaseCommand):
         )
 
         while True:
-            active_institutions = Institution.objects.filter(
-                is_active=True,
-                queue_entries__status__in=ACTIVE_QUEUE_STATUSES,
-            ).distinct().order_by("id")
+            active_institutions = (
+                Institution.objects.filter(
+                    is_active=True,
+                    queue_entries__status__in=ACTIVE_QUEUE_STATUSES,
+                )
+                .distinct()
+                .order_by("id")
+            )
 
             if not active_institutions.exists():
                 self.stdout.write("No active institutions with queue entries.")
@@ -85,7 +88,9 @@ class Command(BaseCommand):
                     )
 
             if once:
-                self.stdout.write(self.style.SUCCESS("Queue worker completed one cycle."))
+                self.stdout.write(
+                    self.style.SUCCESS("Queue worker completed one cycle.")
+                )
                 return
 
             time.sleep(interval)

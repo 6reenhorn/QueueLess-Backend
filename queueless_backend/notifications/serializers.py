@@ -9,7 +9,9 @@ class NotificationSerializer(serializers.ModelSerializer):
         source="queue_entry.institution_id",
         read_only=True,
     )
-    queue_number = serializers.IntegerField(source="queue_entry.queue_number", read_only=True)
+    queue_number = serializers.IntegerField(
+        source="queue_entry.queue_number", read_only=True
+    )
 
     class Meta:
         model = Notification
