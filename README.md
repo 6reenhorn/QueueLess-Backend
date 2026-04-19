@@ -99,6 +99,8 @@ If not set, `ENABLE_MOCK_API` defaults to the value of `DEBUG`.
 For deployed environments, set `ENABLE_MOCK_API=False` unless mock endpoints are
 explicitly required.
 
+The institution list used by these mock routes is simulated until a real institutions API is integrated.
+
 ### 5) Run Migrations
 
 ```powershell
