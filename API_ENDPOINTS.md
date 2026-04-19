@@ -18,7 +18,7 @@ The institution records in this backend are simulated data until a real institut
 | GET | `/api/institutions/{id}/` | Public | Returns one institution with queue summary fields. | Low. Single-row lookup with annotations. |
 | POST | `/api/queue/join/` | Public | Creates a queue entry for an institution. | Low per request, but write-heavy under spikes. Uses row locking and retry logic to stay safe under concurrency. |
 | GET | `/api/queue/entries/{session_id}/status/` | Public | Returns the status of one queue entry. | Low. Single lookup by session ID. |
-| GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | Lists queue entries for one institution. | Medium to high depending on queue size. This can return many rows, so it is the most likely endpoint to grow expensive. |
+| GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | Lists queue entries for one institution (defaults to active entries only). | Medium by default (`active_only=true`). Can become high when requesting full history or broad status filters. |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advances the queue and generates notifications. | Medium. Uses bulk updates and bulk inserts, so it stays efficient even when several entries move at once. |
 
 ## Load Notes By Endpoint
@@ -41,7 +41,13 @@ This is a simple status lookup. It is low load and should remain cheap even with
 
 ### `GET /api/queue/institutions/{institution_id}/entries/`
 
-This endpoint can become expensive if an institution has a long queue history or many active entries, because it returns the full entry list for that institution. It is still acceptable for admin use, but it is not the route to expose to high-frequency frontend polling without pagination.
+This endpoint defaults to `active_only=true`, so it returns only `waiting` and `notified` entries unless you pass either `active_only=false` or a `status` filter.
+
+Supported query params:
+- `active_only` (`true` by default): set to `false` to include all statuses.
+- `status`: comma-separated status list (for example `waiting,served,cancelled`), which overrides the `active_only` filter.
+
+Load is usually medium with the default active filter. It can become high if an institution has a long queue history and clients request full history or broad status filters. It is still acceptable for admin use, but it is not the route to expose to high-frequency frontend polling without pagination.
 
 ### `POST /api/queue/institutions/{institution_id}/simulate-tick/`
 
