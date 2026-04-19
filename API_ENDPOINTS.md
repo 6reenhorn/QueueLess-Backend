@@ -8,7 +8,7 @@ This document summarizes the mock queue API exposed by the backend and the expec
 - Queue API: `/api/queue/`
 
 The mock routes are controlled by `ENABLE_MOCK_API`. If that flag is disabled, these routes are not exposed.
-The institution records in this backend are simulated data until a real institutions provider is connected.
+The institution records in this backend are simulated data until a real institution data provider is connected.
 
 ## Endpoints
 
