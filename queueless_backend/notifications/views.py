@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +9,7 @@ from queue_tracker.query_params import (
     VALID_BOOLEAN_QUERY_VALUES,
     parse_bool_query_param_strict,
 )
+from queue_tracker.services import maybe_auto_tick_institution
 
 from .models import Notification
 from .serializers import NotificationAcknowledgeSerializer, NotificationSerializer
@@ -24,6 +26,12 @@ class QueueEntryNotificationListView(APIView):
                 {"detail": "Queue entry not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        maybe_auto_tick_institution(
+            institution_id=queue_entry.institution_id,
+            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+            randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+        )
 
         delivered_filter_raw = request.query_params.get("delivered")
         delivered_filter = parse_bool_query_param_strict(delivered_filter_raw)

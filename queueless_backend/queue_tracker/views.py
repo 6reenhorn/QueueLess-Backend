@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Max
 from rest_framework import permissions, status
@@ -13,7 +14,11 @@ from .serializers import (
     QueueEntryStatusSerializer,
     QueueJoinSerializer,
 )
-from .services import simulate_queue_tick_for_institution
+from .services import (
+    auto_tick_active_institutions,
+    maybe_auto_tick_institution,
+    simulate_queue_tick_for_institution,
+)
 
 
 class QueueJoinView(APIView):
@@ -109,6 +114,13 @@ class QueueEntryStatusView(APIView):
                 {"detail": "Queue entry not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        maybe_auto_tick_institution(
+            institution_id=entry.institution_id,
+            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+            randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+        )
+        entry.refresh_from_db()
 
         serializer = QueueEntryStatusSerializer(entry)
         return Response(serializer.data)
@@ -207,4 +219,25 @@ class QueueSimulateTickView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        return Response(result)
+
+
+class QueueAutoTickView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        randomize = parse_bool_query_param(
+            request.query_params.get("randomize"),
+            default=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+        )
+        force = parse_bool_query_param(
+            request.query_params.get("force"),
+            default=False,
+        )
+
+        result = auto_tick_active_institutions(
+            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+            randomize=randomize,
+            force=force,
+        )
         return Response(result)

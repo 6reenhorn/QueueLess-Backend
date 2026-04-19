@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     InstitutionQueueStatusView,
+    QueueAutoTickView,
     QueueEntryStatusView,
     QueueJoinView,
     QueueSimulateTickView,
@@ -23,5 +24,10 @@ urlpatterns = [
         "institutions/<int:institution_id>/simulate-tick/",
         QueueSimulateTickView.as_view(),
         name="queue-simulate-tick",
+    ),
+    path(
+        "auto-tick/",
+        QueueAutoTickView.as_view(),
+        name="queue-auto-tick",
     ),
 ]

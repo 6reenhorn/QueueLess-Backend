@@ -188,6 +188,11 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+QUEUE_AUTO_TICK_INTERVAL_SECONDS = int(
+    os.getenv("QUEUE_AUTO_TICK_INTERVAL_SECONDS", "15")
+)
+QUEUE_AUTO_TICK_RANDOMIZE = env_bool("QUEUE_AUTO_TICK_RANDOMIZE", default=True)
+
 # Development-friendly in-memory channel layer.
 CHANNEL_LAYERS = {
     "default": {

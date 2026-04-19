@@ -31,6 +31,7 @@ If disabled, these routes are not exposed.
 | PATCH | `/api/queue/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | List queue entries for one institution | Medium to high |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advance queue state and generate notifications | Medium |
+| POST | `/api/queue/auto-tick/` | Admin only | Trigger one hybrid tick pass across active institutions | Low to medium |
 
 ## Data Types and Enums
 
@@ -501,6 +502,41 @@ Medium. Uses bulk updates and bulk notification inserts to keep simulation effic
 Notification creation in the current mock flow happens in the shared tick service, which is invoked by both this endpoint and the `queue_worker` management command. That shared logic marks served entries, promotes near-turn entries to `notified`, and creates the corresponding notification rows.
 
 The response contract for this endpoint should follow the shared tick service output in all cases, including when there are no active entries to process. In particular, the "no active entries" response is not limited to a minimal `{ "institution_id": ..., "message": ... }` body; it includes the additional summary fields returned by the shared tick service as well.
+
+## POST /api/queue/auto-tick/
+
+### Access
+
+Admin only (`IsAdminUser`)
+
+### Query params
+
+- `randomize` (optional boolean, default from `QUEUE_AUTO_TICK_RANDOMIZE`)
+- `force` (optional boolean, default `false`)
+
+When `force=false`, the hybrid throttle window is applied per institution using `QUEUE_AUTO_TICK_INTERVAL_SECONDS`.
+When `force=true`, one tick is attempted immediately for every institution that currently has active queue entries.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "institutions_considered": 3,
+  "institutions_ticked": 2,
+  "institutions_skipped": 1,
+  "force": false
+}
+```
+
+### Notes
+
+Hybrid mode is designed to avoid a paid always-on worker:
+
+- Request-driven: `/api/queue/entries/{session_id}/status/` and `/api/queue/entries/{session_id}/notifications/` may trigger throttled auto-ticks.
+- Scheduled: a periodic cron ping to `/api/queue/auto-tick/` keeps queues progressing during low traffic.
+- Safety: a per-institution lock + interval throttle helps prevent duplicate ticks under concurrent requests.
 
 ## Operational Guidance
 

@@ -1,5 +1,6 @@
 import random
 
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import ExpressionWrapper, F, IntegerField, Max, Value
 from django.utils import timezone
@@ -8,6 +9,81 @@ from mock_api.models import Institution
 from notifications.models import Notification
 
 from .models import ACTIVE_QUEUE_STATUSES, QueueEntry, QueueEntryStatus
+
+
+def maybe_auto_tick_institution(
+    institution_id: int,
+    *,
+    interval_seconds: int = 15,
+    randomize: bool = True,
+):
+    now = timezone.now().timestamp()
+    interval = max(1, int(interval_seconds))
+    last_tick_key = f"queue:auto_tick:last:{institution_id}"
+    lock_key = f"queue:auto_tick:lock:{institution_id}"
+
+    last_tick_ts = cache.get(last_tick_key)
+    if last_tick_ts is not None and (now - float(last_tick_ts)) < interval:
+        return None
+
+    if not cache.add(lock_key, "1", timeout=interval):
+        return None
+
+    try:
+        now = timezone.now().timestamp()
+        last_tick_ts = cache.get(last_tick_key)
+        if last_tick_ts is not None and (now - float(last_tick_ts)) < interval:
+            return None
+
+        result = simulate_queue_tick_for_institution(
+            institution_id=institution_id,
+            randomize=randomize,
+        )
+        cache.set(last_tick_key, now, timeout=max(60, interval * 4))
+        return result
+    finally:
+        cache.delete(lock_key)
+
+
+def auto_tick_active_institutions(
+    *,
+    interval_seconds: int = 15,
+    randomize: bool = True,
+    force: bool = False,
+):
+    institution_ids = list(
+        QueueEntry.objects.filter(status__in=ACTIVE_QUEUE_STATUSES)
+        .values_list("institution_id", flat=True)
+        .distinct()
+    )
+
+    ticked = 0
+    skipped = 0
+    for institution_id in institution_ids:
+        if force:
+            simulate_queue_tick_for_institution(
+                institution_id=institution_id,
+                randomize=randomize,
+            )
+            ticked += 1
+            continue
+
+        result = maybe_auto_tick_institution(
+            institution_id=institution_id,
+            interval_seconds=interval_seconds,
+            randomize=randomize,
+        )
+        if result is None:
+            skipped += 1
+        else:
+            ticked += 1
+
+    return {
+        "institutions_considered": len(institution_ids),
+        "institutions_ticked": ticked,
+        "institutions_skipped": skipped,
+        "force": force,
+    }
 
 
 def simulate_queue_tick_for_institution(
