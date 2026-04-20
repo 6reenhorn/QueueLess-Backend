@@ -221,9 +221,7 @@ class InstitutionQueueStatusView(APIView):
                 )
             queryset = queryset.filter(status__in=requested_statuses)
         elif active_only:
-            queryset = queryset.filter(
-                status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED]
-            )
+            queryset = queryset.filter(status__in=ACTIVE_QUEUE_STATUSES)
 
         entries = list(queryset)
         result_count = len(entries)

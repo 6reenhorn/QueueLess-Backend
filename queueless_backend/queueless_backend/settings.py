@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "channels",
     "mock_api.apps.MockApiConfig",
-    "queue_tracker",
+    "queue_tracker.apps.QueueTrackerConfig",
     "notifications.apps.NotificationsConfig",
 ]
 

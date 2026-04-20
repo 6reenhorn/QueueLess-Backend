@@ -15,9 +15,9 @@ Load notes are qualitative, not benchmark numbers. Actual capacity depends on de
 - Institution API base: `/api/institutions/`
 - Queue API base: `/api/queue/`
 
-Institution data is simulated and should not be treated as authoritative live data until a real provider is integrated.
-Mock routes are controlled by `ENABLE_MOCK_API`.
-If disabled, these routes are not exposed.
+For the full list of available endpoints and load-profile details, see [API_ENDPOINTS.md](API_ENDPOINTS.md).
+
+See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, poll, and advance the mock queue.
 
 ## Summary Table
 
@@ -27,8 +27,9 @@ If disabled, these routes are not exposed.
 | GET | `/api/institutions/{id}/` | Public | Get one institution with queue summary fields | Low |
 | POST | `/api/queue/join/` | Public | Join queue for an institution | Low per call, write-heavy in spikes |
 | GET | `/api/queue/entries/{session_id}/status/` | Public | Get status for one queue session | Low |
-| GET | `/api/queue/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
-| PATCH | `/api/queue/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
+| PATCH | `/api/queue/entries/{session_id}/check-in/` | Public | Confirm presence during SERVING status | Low |
+| GET | `/api/notifications/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
+| PATCH | `/api/notifications/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | List queue entries for one institution | Medium to high |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advance queue state and generate notifications | Medium |
 | POST | `/api/queue/auto-tick/` | Admin only | Trigger one hybrid tick pass across institutions with active queue entries | Low to medium |
@@ -50,7 +51,8 @@ For query params that accept boolean values (for example `active_only`, `randomi
 - truthy: `1`, `true`, `t`, `yes`, `y`, `on`
 - falsy: `0`, `false`, `f`, `no`, `n`, `off`
 
-- any other value falls back silently to the parameter's default value; the backend does not return `400 Bad Request` for unrecognized boolean-like input
+- any other value falls back silently to the parameter's default value; the backend does not return `400 Bad Request` for unrecognized boolean-like input.
+- **Exception**: Parameters using strict parsing (like `delivered` in notifications) will return `400 Bad Request` on invalid input.
 - defaults are endpoint-specific; for example, `active_only` and `randomize` currently fall back to `true`
 
 ## Endpoint Contracts
@@ -245,7 +247,47 @@ Status: `200 OK`
 
 Low. Single lookup by session ID.
 
-## GET /api/queue/entries/{session_id}/notifications/
+## PATCH /api/queue/entries/{session_id}/check-in/
+
+### Access
+
+Public
+
+### Request body
+
+None required.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "session_id": "0e78ab8f-1f05-4741-8d73-e2d3778e9a35",
+  "institution_id": 1,
+  "queue_number": 42,
+  "current_serving_number": 42,
+  "status": "serving",
+  "near_turn_threshold": 3,
+  "near_turn_notified": true,
+  "issued_at": "2026-04-19T09:45:23.123456Z",
+  "updated_at": "2026-04-19T10:05:00.000000Z",
+  "turn_called_at": "2026-04-19T10:00:00.000000Z",
+  "checked_in_at": "2026-04-19T10:05:00.000000Z",
+  "people_ahead": 0
+}
+```
+
+### Common errors
+
+- `400 Bad Request` if the entry is not in `serving` status.
+- `404 Not Found` if the queue session does not exist.
+
+### Load note
+
+Low. Single lookup and update by session ID.
+
+## GET /api/notifications/entries/{session_id}/notifications/
 
 ### Access
 
@@ -299,7 +341,7 @@ Status: `200 OK`
 
 Low. This is a session-scoped lookup with optional filtering and a capped result size.
 
-## PATCH /api/queue/entries/{session_id}/notifications/{notification_id}/ack/
+## PATCH /api/notifications/entries/{session_id}/notifications/{notification_id}/ack/
 
 ### Access
 
@@ -397,7 +439,7 @@ Status: `200 OK`
     "status": "waiting,notified",
     "active_only": true
   },
-  "count": 2,
+  "count": 1,
   "results": [
     {
       "session_id": "d7fd3722-3fb3-413d-8874-294d2f539bc2",
@@ -479,6 +521,11 @@ Status: `200 OK`
 ```json
 {
   "institution_id": 1,
+  "randomized": true,
+  "increment": 0,
+  "current_serving_number": 24,
+  "served_count": 0,
+  "notified_count": 0,
   "message": "No active queue entries to simulate."
 }
 ```
@@ -534,7 +581,7 @@ Status: `200 OK`
 
 Hybrid mode is designed to avoid a paid always-on worker:
 
-- Request-driven: `/api/queue/entries/{session_id}/status/` and `/api/queue/entries/{session_id}/notifications/` may trigger throttled auto-ticks.
+- Request-driven: `/api/queue/entries/{session_id}/status/` and `/api/notifications/entries/{session_id}/notifications/` may trigger throttled auto-ticks.
 - Scheduled: a periodic cron ping to `/api/queue/auto-tick/` keeps queues progressing during low traffic.
 - Safety: a per-institution lock + interval throttle helps prevent duplicate ticks under concurrent requests.
 
@@ -543,7 +590,22 @@ For multi-instance deployments, configure a shared cache backend via `CACHE_URL`
 ## Operational Guidance
 
 - Keep `ENABLE_MOCK_API=False` in production unless these routes are intentionally exposed.
-- Use `/api/queue/entries/{session_id}/status/` for frontend polling instead of repeatedly fetching full institution queue lists.
+- Use the public status endpoint:
+
+- `GET /api/queue/entries/{session_id}/status/`
+
+This is the endpoint the frontend can poll to show the user their current position and state.
+
+### 6. Check Notifications
+
+Use the public notifications endpoint:
+
+- `GET /api/notifications/entries/{session_id}/notifications/`
+
+This endpoint returns near-turn notifications sent to the user when they are close to being served.
+
+### 7. Advance The Queue Manually
+
 - Add pagination before exposing institution-level queue lists to heavy polling.
 - Keep CORS restricted to known frontend origins.
 

@@ -57,16 +57,19 @@ class QueueEntryNotificationListView(APIView):
             queryset = queryset.filter(delivered=delivered_filter)
 
         if event_type_filter:
-            valid_event_types = {choice[0] for choice in Notification.EventType.choices}
+            valid_event_types = {
+                choice[0].lower(): choice[0]
+                for choice in Notification.EventType.choices
+            }
             if event_type_filter not in valid_event_types:
                 return Response(
                     {
                         "detail": "Invalid event_type filter value provided.",
-                        "valid_event_types": sorted(valid_event_types),
+                        "valid_event_types": sorted(valid_event_types.values()),
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            queryset = queryset.filter(event_type=event_type_filter)
+            queryset = queryset.filter(event_type=valid_event_types[event_type_filter])
 
         maybe_auto_tick_institution(
             institution_id=queue_entry.institution_id,

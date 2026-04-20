@@ -16,4 +16,4 @@ class QueueEntryAdmin(admin.ModelAdmin):
         "issued_at",
     )
     list_filter = ("institution", "status", "near_turn_notified")
-    search_fields = ("institution__name", "=queue_number", "phone_number")
+    search_fields = ("institution__name", "=queue_number", "session_id")

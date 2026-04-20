@@ -271,7 +271,7 @@ def simulate_queue_tick_for_institution(
 
         # --- Step 4: Transition newly-reached entries to SERVING ---
         newly_serving_entries = list(
-            QueueEntry.objects.filter(
+            QueueEntry.objects.select_for_update().filter(
                 institution=institution,
                 status__in=(QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED),
                 queue_number__lte=new_current_serving,
@@ -303,7 +303,8 @@ def simulate_queue_tick_for_institution(
 
         # --- Step 5: Near-turn notifications ---
         near_turn_entries = list(
-            QueueEntry.objects.filter(
+            QueueEntry.objects.select_for_update()
+            .filter(
                 institution=institution,
                 status=QueueEntryStatus.WAITING,
                 near_turn_notified=False,
