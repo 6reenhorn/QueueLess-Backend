@@ -3,6 +3,8 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APIClient
 
 from mock_api.models import Institution
 from notifications.models import Notification
@@ -214,3 +216,63 @@ class QueueCheckInTests(TestCase):
 
         self.assertIsNone(updated_entry)
         self.assertIn("Cannot check in", error)
+
+
+class QueueJoinViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.institution = Institution.objects.create(
+            name="Test Office",
+            institution_type=Institution.InstitutionType.GOVERNMENT,
+            status=Institution.Status.OPEN,
+            is_active=True,
+        )
+
+    def test_join_with_valid_ticket(self):
+        response = self.client.post(
+            "/api/queue/join/",
+            {
+                "institution_id": self.institution.id,
+                "queue_number": 10,
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["queue_number"], 10)
+
+    def test_join_with_already_served_ticket(self):
+        # Create a served entry to set the current serving number to 10
+        QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=10,
+            current_serving_number=10,
+            status=QueueEntryStatus.SERVED,
+        )
+
+        response = self.client.post(
+            "/api/queue/join/",
+            {
+                "institution_id": self.institution.id,
+                "queue_number": 5,  # 5 < 10
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("already been served", response.data["detail"])
+
+    def test_join_with_duplicate_active_ticket(self):
+        # Someone is already tracking #15
+        QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=15,
+            current_serving_number=10,
+            status=QueueEntryStatus.WAITING,
+        )
+
+        response = self.client.post(
+            "/api/queue/join/",
+            {
+                "institution_id": self.institution.id,
+                "queue_number": 15,
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("already being tracked", response.data["detail"])

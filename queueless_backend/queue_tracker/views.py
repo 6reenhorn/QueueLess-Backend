@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from mock_api.models import Institution
 
-from .models import QueueEntry, QueueEntryStatus
+from .models import ACTIVE_QUEUE_STATUSES, QueueEntry, QueueEntryStatus
 from .query_params import parse_bool_query_param
 from .serializers import (
     InstitutionQueueEntrySerializer,
@@ -31,6 +31,7 @@ class QueueJoinView(APIView):
         serializer.is_valid(raise_exception=True)
 
         institution_id = serializer.validated_data["institution_id"]
+        queue_number = serializer.validated_data["queue_number"]
         phone_number = serializer.validated_data.get("phone_number", "")
         browser_push_opt_in = serializer.validated_data.get(
             "browser_push_opt_in", False
@@ -63,21 +64,44 @@ class QueueJoinView(APIView):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
-                    latest_entry = (
-                        QueueEntry.objects.select_for_update()
-                        .filter(institution=institution)
-                        .order_by("-queue_number")
-                        .first()
-                    )
-                    queue_number = (
-                        latest_entry.queue_number if latest_entry else 0
-                    ) + 1
+                    # Get the most recent serving number for this institution
+                    # (Usually tracked on the latest served entries)
                     current_serving_number = (
                         QueueEntry.objects.filter(institution=institution).aggregate(
                             value=Max("current_serving_number")
                         )["value"]
                         or 0
                     )
+
+                    # Validation: Can't track a number that is already served
+                    if queue_number <= current_serving_number:
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Ticket #{queue_number} has already been served. "
+                                    f"Current serving number is "
+                                    f"#{current_serving_number}."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    # Check for duplicate active tracking
+                    # (handled by DB constraint, but we can be explicit)
+                    if QueueEntry.objects.filter(
+                        institution=institution,
+                        queue_number=queue_number,
+                        status__in=ACTIVE_QUEUE_STATUSES,
+                    ).exists():
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Ticket #{queue_number} is already "
+                                    "being tracked by another user."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                     entry = QueueEntry.objects.create(
                         institution=institution,
@@ -90,16 +114,12 @@ class QueueJoinView(APIView):
                     )
                 break
             except IntegrityError:
-                if attempt == retries - 1:
-                    return Response(
-                        {
-                            "detail": (
-                                "Could not allocate a queue number due to "
-                                "concurrent requests. Please retry."
-                            )
-                        },
-                        status=status.HTTP_409_CONFLICT,
-                    )
+                # This catches race conditions where two users hit the
+                # exact same ticket # at the exact same time
+                return Response(
+                    {"detail": f"Ticket #{queue_number} is already being tracked."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         response_serializer = QueueEntryStatusSerializer(entry)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
