@@ -89,6 +89,8 @@ This is the closest path to a real-world queue simulation in the current stack b
 1. Seed the mock data.
 2. Open the frontend and join a queue.
 3. Poll the status and notifications endpoints to watch the user move from waiting to notified to served.
+    - Status: `/api/queue/entries/{session_id}/status/`
+    - Notifications: `/api/queue/entries/{session_id}/notifications/`
 4. Use the simulation endpoint for manual advancement, or run the worker for automatic backend-driven advancement.
 
 ## Notes

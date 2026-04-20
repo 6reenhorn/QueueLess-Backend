@@ -112,8 +112,13 @@ def maybe_auto_tick_institution(
         cache.set(last_tick_key, now, timeout=max(60, interval * 4))
         return result
     finally:
-        if cache.get(lock_key) == lock_token:
-            cache.delete(lock_key)
+        # Note: This is a non-atomic TOCTOU check-and-delete.
+        # In production with Redis, use a Lua script for an atomic release.
+        try:
+            if cache.get(lock_key) == lock_token:
+                cache.delete(lock_key)
+        except Exception:
+            pass
 
 
 def auto_tick_active_institutions(

@@ -114,12 +114,13 @@ class QueueJoinView(APIView):
                     )
                 break
             except IntegrityError:
-                # This catches race conditions where two users hit the
-                # exact same ticket # at the exact same time
-                return Response(
-                    {"detail": f"Ticket #{queue_number} is already being tracked."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                # If on last attempt, return error. Otherwise, retry.
+                if attempt == retries - 1:
+                    return Response(
+                        {"detail": f"Ticket #{queue_number} is already being tracked."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                continue
 
         response_serializer = QueueEntryStatusSerializer(entry)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)

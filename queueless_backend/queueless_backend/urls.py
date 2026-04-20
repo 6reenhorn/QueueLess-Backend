@@ -23,7 +23,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 ]
 
-if settings.ENABLE_MOCK_API:
+if getattr(settings, "ENABLE_MOCK_API", False):
     urlpatterns += [
         path("api/", include("mock_api.urls")),
         path("api/queue/", include("queue_tracker.urls")),
