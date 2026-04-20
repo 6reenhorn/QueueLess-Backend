@@ -42,7 +42,7 @@ class NotificationApiTests(TestCase):
 
     def test_list_notifications_for_session(self):
         response = self.client.get(
-            f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
+            f"/api/notifications/entries/{self.queue_entry.session_id}/notifications/"
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -52,8 +52,8 @@ class NotificationApiTests(TestCase):
     def test_list_notifications_with_filters(self):
         response = self.client.get(
             (
-                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
-                "?delivered=false&event_type=near_turn"
+                f"/api/notifications/entries/{self.queue_entry.session_id}/"
+                "notifications/?delivered=false&event_type=near_turn"
             )
         )
 
@@ -66,8 +66,8 @@ class NotificationApiTests(TestCase):
     def test_list_notifications_invalid_event_type(self):
         response = self.client.get(
             (
-                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
-                "?event_type=invalid"
+                f"/api/notifications/entries/{self.queue_entry.session_id}/"
+                "notifications/?event_type=invalid"
             )
         )
 
@@ -77,8 +77,8 @@ class NotificationApiTests(TestCase):
     def test_list_notifications_invalid_delivered_filter(self):
         response = self.client.get(
             (
-                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
-                "?delivered=maybe"
+                f"/api/notifications/entries/{self.queue_entry.session_id}/"
+                "notifications/?delivered=maybe"
             )
         )
 
@@ -88,8 +88,8 @@ class NotificationApiTests(TestCase):
     def test_list_notifications_invalid_limit(self):
         response = self.client.get(
             (
-                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
-                "?limit=abc"
+                f"/api/notifications/entries/{self.queue_entry.session_id}/"
+                "notifications/?limit=abc"
             )
         )
 
@@ -102,8 +102,8 @@ class NotificationApiTests(TestCase):
     def test_acknowledge_notification(self):
         response = self.client.patch(
             (
-                f"/api/queue/entries/{self.queue_entry.session_id}/notifications/"
-                f"{self.notification_near_turn.id}/ack/"
+                f"/api/notifications/entries/{self.queue_entry.session_id}/"
+                f"notifications/{self.notification_near_turn.id}/ack/"
             ),
             {
                 "delivered": True,
@@ -130,8 +130,8 @@ class NotificationApiTests(TestCase):
         )
         response = self.client.patch(
             (
-                f"/api/queue/entries/{other_entry.session_id}/notifications/"
-                f"{self.notification_near_turn.id}/ack/"
+                f"/api/notifications/entries/{other_entry.session_id}/"
+                f"notifications/{self.notification_near_turn.id}/ack/"
             ),
             {"delivered": True},
             format="json",
