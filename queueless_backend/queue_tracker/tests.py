@@ -215,7 +215,8 @@ class QueueCheckInTests(TestCase):
         updated_entry, error = check_in_serving_entry(entry.session_id)
 
         self.assertIsNone(updated_entry)
-        self.assertIn("Cannot check in", error)
+        self.assertIn("Cannot check in", error["message"])
+        self.assertEqual(error["code"], "INVALID_STATUS")
 
 
 class QueueJoinViewTests(TestCase):

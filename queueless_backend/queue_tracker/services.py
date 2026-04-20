@@ -57,24 +57,30 @@ def check_in_serving_entry(session_id):
     """
     Mark a SERVING entry as checked in. Stops the auto-expiry timer.
 
-    Returns (entry, error_message). If successful, error_message is None.
+    Returns (entry, error). If successful, error is None.
+    'error' is a dict with 'code' and 'message'.
     """
-    try:
-        entry = QueueEntry.objects.get(session_id=session_id)
-    except QueueEntry.DoesNotExist:
-        return None, "Queue entry not found."
+    with transaction.atomic():
+        try:
+            entry = QueueEntry.objects.select_for_update().get(session_id=session_id)
+        except QueueEntry.DoesNotExist:
+            return None, {"code": "NOT_FOUND", "message": "Queue entry not found."}
 
-    if entry.status != QueueEntryStatus.SERVING:
-        return None, (
-            f"Cannot check in: status is '{entry.status}', " f"expected 'serving'."
-        )
+        if entry.status != QueueEntryStatus.SERVING:
+            return None, {
+                "code": "INVALID_STATUS",
+                "message": (
+                    f"Cannot check in: status is '{entry.status}', "
+                    "expected 'serving'."
+                ),
+            }
 
-    if entry.checked_in_at is not None:
-        return entry, None  # Already checked in, idempotent
+        if entry.checked_in_at is not None:
+            return entry, None  # Already checked in, idempotent
 
-    entry.checked_in_at = timezone.now()
-    entry.save(update_fields=["checked_in_at", "updated_at"])
-    return entry, None
+        entry.checked_in_at = timezone.now()
+        entry.save(update_fields=["checked_in_at", "updated_at"])
+        return entry, None
 
 
 def maybe_auto_tick_institution(

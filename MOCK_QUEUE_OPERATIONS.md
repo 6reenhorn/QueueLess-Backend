@@ -91,8 +91,9 @@ This is the closest path to a real-world queue simulation in the current stack b
 3. Poll the status and notifications endpoints to watch the user move from waiting to notified to served.
     - Status: `/api/queue/entries/{session_id}/status/`
     - Notifications: `/api/notifications/entries/{session_id}/notifications/`
-4. Use the simulation endpoint for manual advancement, or run the worker for automatic backend-driven advancement.## Notes
+4. Use the simulation endpoint for manual advancement, or run the worker for automatic backend-driven advancement.
 
+## Notes
 - The data is intentionally mock-only until a real institution data provider is available.
 - The queue is suitable for frontend demos, testing, and walkthroughs.
 - For production-style behavior, replace the simulation flow with a real queue source and real operational triggers.

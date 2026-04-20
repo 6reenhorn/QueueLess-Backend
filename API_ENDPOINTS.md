@@ -467,7 +467,7 @@ Status: `200 OK`
 {
   "detail": "Invalid status filter values provided.",
   "invalid_statuses": ["unknown_status"],
-  "valid_statuses": ["cancelled", "expired", "notified", "served", "waiting"]
+  "valid_statuses": ["cancelled", "expired", "notified", "served", "serving", "waiting"]
 }
 ```
 

@@ -164,13 +164,13 @@ class QueueEntryCheckInView(APIView):
     def patch(self, request, session_id):
         entry, error = check_in_serving_entry(session_id)
         if error:
-            if entry is None and error == "Queue entry not found.":
+            if error.get("code") == "NOT_FOUND":
                 return Response(
-                    {"detail": error},
+                    {"detail": error["message"]},
                     status=status.HTTP_404_NOT_FOUND,
                 )
             return Response(
-                {"detail": error},
+                {"detail": error["message"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
