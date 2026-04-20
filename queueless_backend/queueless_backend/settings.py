@@ -228,9 +228,21 @@ except ValueError as exc:
 if QUEUE_GRACE_PERIOD_SECONDS < 1:
     raise ImproperlyConfigured("QUEUE_GRACE_PERIOD_SECONDS must be at least 1.")
 
-# Development-friendly in-memory channel layer.
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
-}
+# Channel layer configuration.
+# Use Redis in production (via CHANNEL_LAYER_URL) or InMemory for dev.
+channel_layer_url = os.getenv("CHANNEL_LAYER_URL")
+if channel_layer_url:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [channel_layer_url],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }

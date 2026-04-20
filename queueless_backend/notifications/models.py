@@ -11,6 +11,7 @@ class Notification(models.Model):
         NEAR_TURN = "near_turn", "Near Turn"
         TURN_CALLED = "turn_called", "Turn Called"
         SESSION_EXPIRED = "session_expired", "Session Expired"
+        SESSION_COMPLETED = "session_completed", "Session Completed"
         GENERIC = "generic", "Generic"
 
     queue_entry = models.ForeignKey(

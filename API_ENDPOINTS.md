@@ -15,7 +15,7 @@ Load notes are qualitative, not benchmark numbers. Actual capacity depends on de
 - Institution API base: `/api/institutions/`
 - Queue API base: `/api/queue/`
 
-For the full list of available endpoints and load-profile details, see [API_ENDPOINTS.md](API_ENDPOINTS.md).
+The sections below provide the full list of available endpoints and load-profile details.
 
 See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, poll, and advance the mock queue.
 
@@ -40,6 +40,7 @@ See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, 
 
 - `waiting`
 - `notified`
+- `serving`
 - `served`
 - `expired`
 - `cancelled`
@@ -300,7 +301,7 @@ Public
 ### Query params
 
 - `delivered` (optional boolean, filters notifications by delivery state; this parameter is parsed strictly, and invalid boolean-like values return `400 Bad Request` rather than silently falling back)
-- `event_type` (optional string, one of `near_turn`, `turn_called`, `session_expired`, `generic`)
+- `event_type` (optional string, one of `near_turn`, `turn_called`, `session_expired`, `session_completed`, `generic`)
 - `limit` (optional integer, defaults to `50`, maximum `100`)
 
 ### Success response
@@ -590,24 +591,16 @@ For multi-instance deployments, configure a shared cache backend via `CACHE_URL`
 ## Operational Guidance
 
 - Keep `ENABLE_MOCK_API=False` in production unless these routes are intentionally exposed.
-- Use the public status endpoint:
-
-- `GET /api/queue/entries/{session_id}/status/`
-
-This is the endpoint the frontend can poll to show the user their current position and state.
-
-### 6. Check Notifications
-
-Use the public notifications endpoint:
-
-- `GET /api/notifications/entries/{session_id}/notifications/`
-
-This endpoint returns near-turn notifications sent to the user when they are close to being served.
-
-### 7. Advance The Queue Manually
-
 - Add pagination before exposing institution-level queue lists to heavy polling.
 - Keep CORS restricted to known frontend origins.
+
+### Frontend Polling
+
+The frontend should poll the following public endpoints to track queue status:
+
+- `GET /api/queue/entries/{session_id}/status/` - Poll to show the user their current position and state.
+- `GET /api/notifications/entries/{session_id}/notifications/` - Retrieve near-turn and completion notifications.
+
 
 ## Documentation Scope Note
 

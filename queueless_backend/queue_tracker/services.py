@@ -21,7 +21,7 @@ def expire_stale_serving_entries(institution_id, grace_period_seconds):
     Returns the list of expired QueueEntry instances.
     """
     cutoff = timezone.now() - timedelta(seconds=grace_period_seconds)
-    stale_qs = QueueEntry.objects.filter(
+    stale_qs = QueueEntry.objects.select_for_update().filter(
         institution_id=institution_id,
         status=QueueEntryStatus.SERVING,
         turn_called_at__lte=cutoff,
@@ -214,8 +214,8 @@ def simulate_queue_tick_for_institution(
                     Notification(
                         queue_entry=entry,
                         channel=Notification.Channel.SYSTEM,
-                        event_type=Notification.EventType.TURN_CALLED,
-                        message=f"Queue #{entry.queue_number} is now being served.",
+                        event_type=Notification.EventType.SESSION_COMPLETED,
+                        message=f"Queue #{entry.queue_number} has been completed.",
                         delivered=False,
                     )
                     for entry in checked_in_serving
