@@ -1,9 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import redirect
 
 
 def landing_page(request):
     """
-    Renders the beautiful landing page for QueueLess.
-    Satisfies US-11 requirements.
+    Redirects the user to the landing page.
     """
-    return render(request, "landing.html")
+    return redirect("https://queue-less-phi.vercel.app")
