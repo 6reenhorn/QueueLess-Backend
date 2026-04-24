@@ -147,6 +147,28 @@ class QueueTickServiceTests(TestCase):
         )
         self.assertEqual(expiry_notifications.count(), 1)
 
+    def test_expires_at_populated_when_serving(self):
+        # Create an entry that will transition to SERVING on next tick
+        QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=4,
+            status=QueueEntryStatus.WAITING,
+        )
+
+        simulate_queue_tick_for_institution(
+            self.institution.id, randomize=False, grace_period_seconds=180
+        )
+
+        entry = QueueEntry.objects.get(institution=self.institution, queue_number=5)
+        self.assertEqual(entry.status, QueueEntryStatus.SERVING)
+        self.assertIsNotNone(entry.expires_at)
+        # expires_at should be roughly turn_called_at + 180s
+        expected_expiry = entry.turn_called_at + timedelta(seconds=180)
+        self.assertAlmostEqual(
+            entry.expires_at.timestamp(), expected_expiry.timestamp(), places=1
+        )
+
 
 class QueueAutoTickServiceTests(TestCase):
     def setUp(self):

@@ -138,21 +138,22 @@ class QueueEntryStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        expire_stale_serving_entries(
-            institution_id=entry.institution_id,
-            grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
-        )
+        with transaction.atomic():
+            expire_stale_serving_entries(
+                institution_id=entry.institution_id,
+                grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
+            )
 
-        tick_result = maybe_auto_tick_institution(
-            institution_id=entry.institution_id,
-            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
-            randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
-            grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
-        )
-        if tick_result is not None:
-            entry.refresh_from_db()
-        else:
-            entry.refresh_from_db()
+            tick_result = maybe_auto_tick_institution(
+                institution_id=entry.institution_id,
+                interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+                randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+                grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
+            )
+            if tick_result is not None:
+                entry.refresh_from_db()
+            else:
+                entry.refresh_from_db()
 
         serializer = QueueEntryStatusSerializer(entry)
         return Response(serializer.data)

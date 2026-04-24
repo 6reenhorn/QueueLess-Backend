@@ -20,37 +20,38 @@ def expire_stale_serving_entries(institution_id, grace_period_seconds):
 
     Returns the list of expired QueueEntry instances.
     """
-    cutoff = timezone.now() - timedelta(seconds=grace_period_seconds)
-    stale_qs = QueueEntry.objects.select_for_update().filter(
-        institution_id=institution_id,
-        status=QueueEntryStatus.SERVING,
-        turn_called_at__lte=cutoff,
-        checked_in_at__isnull=True,
-    )
-    expired_entries = list(stale_qs)
-    if expired_entries:
-        now = timezone.now()
-        expired_ids = [entry.id for entry in expired_entries]
-        QueueEntry.objects.filter(pk__in=expired_ids).update(
-            status=QueueEntryStatus.EXPIRED,
-            updated_at=now,
+    with transaction.atomic():
+        cutoff = timezone.now() - timedelta(seconds=grace_period_seconds)
+        stale_qs = QueueEntry.objects.select_for_update().filter(
+            institution_id=institution_id,
+            status=QueueEntryStatus.SERVING,
+            turn_called_at__lte=cutoff,
+            checked_in_at__isnull=True,
         )
-        Notification.objects.bulk_create(
-            [
-                Notification(
-                    queue_entry=entry,
-                    channel=Notification.Channel.SYSTEM,
-                    event_type=Notification.EventType.SESSION_EXPIRED,
-                    message=(
-                        f"Queue #{entry.queue_number} expired "
-                        f"(no check-in within grace period)."
-                    ),
-                    delivered=False,
-                )
-                for entry in expired_entries
-            ]
-        )
-    return expired_entries
+        expired_entries = list(stale_qs)
+        if expired_entries:
+            now = timezone.now()
+            expired_ids = [entry.id for entry in expired_entries]
+            QueueEntry.objects.filter(pk__in=expired_ids).update(
+                status=QueueEntryStatus.EXPIRED,
+                updated_at=now,
+            )
+            Notification.objects.bulk_create(
+                [
+                    Notification(
+                        queue_entry=entry,
+                        channel=Notification.Channel.SYSTEM,
+                        event_type=Notification.EventType.SESSION_EXPIRED,
+                        message=(
+                            f"Queue #{entry.queue_number} expired "
+                            f"(no check-in within grace period)."
+                        ),
+                        delivered=False,
+                    )
+                    for entry in expired_entries
+                ]
+            )
+        return expired_entries
 
 
 def check_in_serving_entry(session_id):
@@ -289,6 +290,7 @@ def simulate_queue_tick_for_institution(
             QueueEntry.objects.filter(pk__in=newly_serving_ids).update(
                 status=QueueEntryStatus.SERVING,
                 turn_called_at=now,
+                expires_at=now + timedelta(seconds=grace_period_seconds),
                 updated_at=now,
             )
             Notification.objects.bulk_create(
