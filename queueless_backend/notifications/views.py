@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +9,7 @@ from queue_tracker.query_params import (
     VALID_BOOLEAN_QUERY_VALUES,
     parse_bool_query_param_strict,
 )
+from queue_tracker.services import maybe_auto_tick_institution
 
 from .models import Notification
 from .serializers import NotificationAcknowledgeSerializer, NotificationSerializer
@@ -55,16 +57,25 @@ class QueueEntryNotificationListView(APIView):
             queryset = queryset.filter(delivered=delivered_filter)
 
         if event_type_filter:
-            valid_event_types = {choice[0] for choice in Notification.EventType.choices}
+            valid_event_types = {
+                choice[0].lower(): choice[0]
+                for choice in Notification.EventType.choices
+            }
             if event_type_filter not in valid_event_types:
                 return Response(
                     {
                         "detail": "Invalid event_type filter value provided.",
-                        "valid_event_types": sorted(valid_event_types),
+                        "valid_event_types": sorted(valid_event_types.values()),
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            queryset = queryset.filter(event_type=event_type_filter)
+            queryset = queryset.filter(event_type=valid_event_types[event_type_filter])
+
+        maybe_auto_tick_institution(
+            institution_id=queue_entry.institution_id,
+            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+            randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+        )
 
         notifications = list(queryset[:limit])
         serializer = NotificationSerializer(notifications, many=True)

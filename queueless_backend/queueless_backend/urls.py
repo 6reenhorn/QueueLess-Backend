@@ -19,13 +19,16 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
+from .views import landing_page
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", landing_page, name="landing"),
 ]
 
-if settings.ENABLE_MOCK_API:
+if getattr(settings, "ENABLE_MOCK_API", False):
     urlpatterns += [
-        path("api/", include("mock_api.urls")),
         path("api/queue/", include("queue_tracker.urls")),
-        path("api/queue/", include("notifications.urls")),
+        path("api/notifications/", include("notifications.urls")),
+        path("api/", include("mock_api.urls")),
     ]

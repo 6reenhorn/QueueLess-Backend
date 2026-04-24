@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import close_old_connections
 
@@ -78,6 +79,7 @@ class Command(BaseCommand):
                     result = simulate_queue_tick_for_institution(
                         institution.id,
                         randomize=randomize,
+                        grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
                     )
                 except Institution.DoesNotExist:
                     continue
@@ -96,6 +98,7 @@ class Command(BaseCommand):
                         f"[{institution.id}] {institution.name}: "
                         f"served={result['served_count']}, "
                         f"notified={result['notified_count']}, "
+                        f"expired={result.get('expired_count', 0)}, "
                         f"current_serving={result['current_serving_number']}"
                     )
                 )

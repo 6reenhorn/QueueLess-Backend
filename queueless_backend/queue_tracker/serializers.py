@@ -5,6 +5,7 @@ from .models import QueueEntry
 
 class QueueJoinSerializer(serializers.Serializer):
     institution_id = serializers.IntegerField(min_value=1)
+    queue_number = serializers.IntegerField(min_value=1)
     phone_number = serializers.CharField(
         max_length=20, required=False, allow_blank=True
     )
@@ -32,6 +33,8 @@ class QueueEntryStatusSerializer(serializers.ModelSerializer):
             "near_turn_notified",
             "issued_at",
             "updated_at",
+            "turn_called_at",
+            "checked_in_at",
             "people_ahead",
         ]
 
@@ -53,4 +56,6 @@ class InstitutionQueueEntrySerializer(serializers.ModelSerializer):
             "updated_at",
             "served_at",
             "expires_at",
+            "turn_called_at",
+            "checked_in_at",
         ]

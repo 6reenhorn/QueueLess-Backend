@@ -15,9 +15,9 @@ Load notes are qualitative, not benchmark numbers. Actual capacity depends on de
 - Institution API base: `/api/institutions/`
 - Queue API base: `/api/queue/`
 
-Institution data is simulated and should not be treated as authoritative live data until a real provider is integrated.
-Mock routes are controlled by `ENABLE_MOCK_API`.
-If disabled, these routes are not exposed.
+The sections below provide the full list of available endpoints and load-profile details.
+
+See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, poll, and advance the mock queue.
 
 ## Summary Table
 
@@ -27,10 +27,12 @@ If disabled, these routes are not exposed.
 | GET | `/api/institutions/{id}/` | Public | Get one institution with queue summary fields | Low |
 | POST | `/api/queue/join/` | Public | Join queue for an institution | Low per call, write-heavy in spikes |
 | GET | `/api/queue/entries/{session_id}/status/` | Public | Get status for one queue session | Low |
-| GET | `/api/queue/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
-| PATCH | `/api/queue/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
+| PATCH | `/api/queue/entries/{session_id}/check-in/` | Public | Confirm presence during SERVING status | Low |
+| GET | `/api/notifications/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
+| PATCH | `/api/notifications/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | List queue entries for one institution | Medium to high |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advance queue state and generate notifications | Medium |
+| POST | `/api/queue/auto-tick/` | Admin only | Trigger one hybrid tick pass across institutions with active queue entries | Low to medium |
 
 ## Data Types and Enums
 
@@ -38,6 +40,7 @@ If disabled, these routes are not exposed.
 
 - `waiting`
 - `notified`
+- `serving`
 - `served`
 - `expired`
 - `cancelled`
@@ -49,7 +52,8 @@ For query params that accept boolean values (for example `active_only`, `randomi
 - truthy: `1`, `true`, `t`, `yes`, `y`, `on`
 - falsy: `0`, `false`, `f`, `no`, `n`, `off`
 
-- any other value falls back silently to the parameter's default value; the backend does not return `400 Bad Request` for unrecognized boolean-like input
+- any other value falls back silently to the parameter's default value; the backend does not return `400 Bad Request` for unrecognized boolean-like input.
+- **Exception**: Parameters using strict parsing (like `delivered` in notifications) will return `400 Bad Request` on invalid input.
 - defaults are endpoint-specific; for example, `active_only` and `randomize` currently fall back to `true`
 
 ## Endpoint Contracts
@@ -244,7 +248,47 @@ Status: `200 OK`
 
 Low. Single lookup by session ID.
 
-## GET /api/queue/entries/{session_id}/notifications/
+## PATCH /api/queue/entries/{session_id}/check-in/
+
+### Access
+
+Public
+
+### Request body
+
+None required.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "session_id": "0e78ab8f-1f05-4741-8d73-e2d3778e9a35",
+  "institution_id": 1,
+  "queue_number": 42,
+  "current_serving_number": 42,
+  "status": "serving",
+  "near_turn_threshold": 3,
+  "near_turn_notified": true,
+  "issued_at": "2026-04-19T09:45:23.123456Z",
+  "updated_at": "2026-04-19T10:05:00.000000Z",
+  "turn_called_at": "2026-04-19T10:00:00.000000Z",
+  "checked_in_at": "2026-04-19T10:05:00.000000Z",
+  "people_ahead": 0
+}
+```
+
+### Common errors
+
+- `400 Bad Request` if the entry is not in `serving` status.
+- `404 Not Found` if the queue session does not exist.
+
+### Load note
+
+Low. Single lookup and update by session ID.
+
+## GET /api/notifications/entries/{session_id}/notifications/
 
 ### Access
 
@@ -257,7 +301,7 @@ Public
 ### Query params
 
 - `delivered` (optional boolean, filters notifications by delivery state; this parameter is parsed strictly, and invalid boolean-like values return `400 Bad Request` rather than silently falling back)
-- `event_type` (optional string, one of `near_turn`, `turn_called`, `session_expired`, `generic`)
+- `event_type` (optional string, one of `near_turn`, `turn_called`, `session_expired`, `session_completed`, `generic`)
 - `limit` (optional integer, defaults to `50`, maximum `100`)
 
 ### Success response
@@ -298,7 +342,7 @@ Status: `200 OK`
 
 Low. This is a session-scoped lookup with optional filtering and a capped result size.
 
-## PATCH /api/queue/entries/{session_id}/notifications/{notification_id}/ack/
+## PATCH /api/notifications/entries/{session_id}/notifications/{notification_id}/ack/
 
 ### Access
 
@@ -396,7 +440,7 @@ Status: `200 OK`
     "status": "waiting,notified",
     "active_only": true
   },
-  "count": 2,
+  "count": 1,
   "results": [
     {
       "session_id": "d7fd3722-3fb3-413d-8874-294d2f539bc2",
@@ -423,7 +467,7 @@ Status: `200 OK`
 {
   "detail": "Invalid status filter values provided.",
   "invalid_statuses": ["unknown_status"],
-  "valid_statuses": ["cancelled", "expired", "notified", "served", "waiting"]
+  "valid_statuses": ["cancelled", "expired", "notified", "served", "serving", "waiting"]
 }
 ```
 
@@ -478,6 +522,11 @@ Status: `200 OK`
 ```json
 {
   "institution_id": 1,
+  "randomized": true,
+  "increment": 0,
+  "current_serving_number": 24,
+  "served_count": 0,
+  "notified_count": 0,
   "message": "No active queue entries to simulate."
 }
 ```
@@ -502,12 +551,56 @@ Notification creation in the current mock flow happens in the shared tick servic
 
 The response contract for this endpoint should follow the shared tick service output in all cases, including when there are no active entries to process. In particular, the "no active entries" response is not limited to a minimal `{ "institution_id": ..., "message": ... }` body; it includes the additional summary fields returned by the shared tick service as well.
 
+## POST /api/queue/auto-tick/
+
+### Access
+
+Admin only (`IsAdminUser`)
+
+### Query params
+
+- `randomize` (optional boolean, default from `QUEUE_AUTO_TICK_RANDOMIZE`)
+- `force` (optional boolean, default `false`)
+
+When `force=false`, the hybrid throttle window is applied per institution using `QUEUE_AUTO_TICK_INTERVAL_SECONDS`.
+When `force=true`, one tick is attempted immediately for every institution that currently has active queue entries.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "institutions_considered": 3,
+  "institutions_ticked": 2,
+  "institutions_skipped": 1,
+  "force": false
+}
+```
+
+### Notes
+
+Hybrid mode is designed to avoid a paid always-on worker:
+
+- Request-driven: `/api/queue/entries/{session_id}/status/` and `/api/notifications/entries/{session_id}/notifications/` may trigger throttled auto-ticks.
+- Scheduled: a periodic cron ping to `/api/queue/auto-tick/` keeps queues progressing during low traffic.
+- Safety: a per-institution lock + interval throttle helps prevent duplicate ticks under concurrent requests.
+
+For multi-instance deployments, configure a shared cache backend via `CACHE_URL` (for example Redis) so lock/throttle coordination works across processes and instances.
+
 ## Operational Guidance
 
 - Keep `ENABLE_MOCK_API=False` in production unless these routes are intentionally exposed.
-- Use `/api/queue/entries/{session_id}/status/` for frontend polling instead of repeatedly fetching full institution queue lists.
 - Add pagination before exposing institution-level queue lists to heavy polling.
 - Keep CORS restricted to known frontend origins.
+
+### Frontend Polling
+
+The frontend should poll the following public endpoints to track queue status:
+
+- `GET /api/queue/entries/{session_id}/status/` - Poll to show the user their current position and state.
+- `GET /api/notifications/entries/{session_id}/notifications/` - Retrieve near-turn and completion notifications.
+
 
 ## Documentation Scope Note
 

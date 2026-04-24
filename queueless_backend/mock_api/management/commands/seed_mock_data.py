@@ -45,17 +45,12 @@ INSTITUTION_SEED_DATA = [
         "address": "Makati City",
     },
     {
-        "name": "Philippine Postal Savings Bank (UCPB)",
+        "name": "Philippine Postal Savings Bank (PostBank)",
         "institution_type": Institution.InstitutionType.BANK,
         "address": "Liwasang Bonifacio, Manila",
     },
     {
-        "name": "Philippine National Oil Co. (PNOC)",
-        "institution_type": Institution.InstitutionType.UTILITY,
-        "address": "Taguig City",
-    },
-    {
-        "name": "Philippine Power Corp. (PCCP)",
+        "name": "National Power Corporation (NPC)",
         "institution_type": Institution.InstitutionType.UTILITY,
         "address": "Ortigas Center, Pasig",
     },

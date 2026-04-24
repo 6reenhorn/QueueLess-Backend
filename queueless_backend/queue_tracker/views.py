@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Max
 from rest_framework import permissions, status
@@ -6,14 +7,20 @@ from rest_framework.views import APIView
 
 from mock_api.models import Institution
 
-from .models import QueueEntry, QueueEntryStatus
+from .models import ACTIVE_QUEUE_STATUSES, QueueEntry, QueueEntryStatus
 from .query_params import parse_bool_query_param
 from .serializers import (
     InstitutionQueueEntrySerializer,
     QueueEntryStatusSerializer,
     QueueJoinSerializer,
 )
-from .services import simulate_queue_tick_for_institution
+from .services import (
+    auto_tick_active_institutions,
+    check_in_serving_entry,
+    expire_stale_serving_entries,
+    maybe_auto_tick_institution,
+    simulate_queue_tick_for_institution,
+)
 
 
 class QueueJoinView(APIView):
@@ -24,6 +31,7 @@ class QueueJoinView(APIView):
         serializer.is_valid(raise_exception=True)
 
         institution_id = serializer.validated_data["institution_id"]
+        queue_number = serializer.validated_data["queue_number"]
         phone_number = serializer.validated_data.get("phone_number", "")
         browser_push_opt_in = serializer.validated_data.get(
             "browser_push_opt_in", False
@@ -56,21 +64,44 @@ class QueueJoinView(APIView):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
-                    latest_entry = (
-                        QueueEntry.objects.select_for_update()
-                        .filter(institution=institution)
-                        .order_by("-queue_number")
-                        .first()
-                    )
-                    queue_number = (
-                        latest_entry.queue_number if latest_entry else 0
-                    ) + 1
+                    # Get the most recent serving number for this institution
+                    # (Usually tracked on the latest served entries)
                     current_serving_number = (
                         QueueEntry.objects.filter(institution=institution).aggregate(
                             value=Max("current_serving_number")
                         )["value"]
                         or 0
                     )
+
+                    # Validation: Can't track a number that is already served
+                    if queue_number <= current_serving_number:
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Ticket #{queue_number} has already been served. "
+                                    f"Current serving number is "
+                                    f"#{current_serving_number}."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    # Check for duplicate active tracking
+                    # (handled by DB constraint, but we can be explicit)
+                    if QueueEntry.objects.filter(
+                        institution=institution,
+                        queue_number=queue_number,
+                        status__in=ACTIVE_QUEUE_STATUSES,
+                    ).exists():
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Ticket #{queue_number} is already "
+                                    "being tracked by another user."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                     entry = QueueEntry.objects.create(
                         institution=institution,
@@ -83,16 +114,13 @@ class QueueJoinView(APIView):
                     )
                 break
             except IntegrityError:
+                # If on last attempt, return error. Otherwise, retry.
                 if attempt == retries - 1:
                     return Response(
-                        {
-                            "detail": (
-                                "Could not allocate a queue number due to "
-                                "concurrent requests. Please retry."
-                            )
-                        },
-                        status=status.HTTP_409_CONFLICT,
+                        {"detail": f"Ticket #{queue_number} is already being tracked."},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
+                continue
 
         response_serializer = QueueEntryStatusSerializer(entry)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -108,6 +136,43 @@ class QueueEntryStatusView(APIView):
             return Response(
                 {"detail": "Queue entry not found."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        with transaction.atomic():
+            expire_stale_serving_entries(
+                institution_id=entry.institution_id,
+                grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
+            )
+
+            tick_result = maybe_auto_tick_institution(
+                institution_id=entry.institution_id,
+                interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+                randomize=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+                grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
+            )
+            if tick_result is not None:
+                entry.refresh_from_db()
+            else:
+                entry.refresh_from_db()
+
+        serializer = QueueEntryStatusSerializer(entry)
+        return Response(serializer.data)
+
+
+class QueueEntryCheckInView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def patch(self, request, session_id):
+        entry, error = check_in_serving_entry(session_id)
+        if error:
+            if error.get("code") == "NOT_FOUND":
+                return Response(
+                    {"detail": error["message"]},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            return Response(
+                {"detail": error["message"]},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = QueueEntryStatusSerializer(entry)
@@ -157,9 +222,7 @@ class InstitutionQueueStatusView(APIView):
                 )
             queryset = queryset.filter(status__in=requested_statuses)
         elif active_only:
-            queryset = queryset.filter(
-                status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.NOTIFIED]
-            )
+            queryset = queryset.filter(status__in=ACTIVE_QUEUE_STATUSES)
 
         entries = list(queryset)
         result_count = len(entries)
@@ -207,4 +270,26 @@ class QueueSimulateTickView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        return Response(result)
+
+
+class QueueAutoTickView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        randomize = parse_bool_query_param(
+            request.query_params.get("randomize"),
+            default=settings.QUEUE_AUTO_TICK_RANDOMIZE,
+        )
+        force = parse_bool_query_param(
+            request.query_params.get("force"),
+            default=False,
+        )
+
+        result = auto_tick_active_institutions(
+            interval_seconds=settings.QUEUE_AUTO_TICK_INTERVAL_SECONDS,
+            randomize=randomize,
+            force=force,
+            grace_period_seconds=settings.QUEUE_GRACE_PERIOD_SECONDS,
+        )
         return Response(result)
