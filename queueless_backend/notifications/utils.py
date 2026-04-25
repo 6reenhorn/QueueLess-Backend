@@ -1,7 +1,8 @@
 import json
 import logging
+
 from django.conf import settings
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPushException, webpush
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +11,8 @@ def send_web_push(subscription, message_body):
     """
     Send a web push notification to a specific subscription.
     """
-    if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
-        logger.warning("VAPID keys not configured. Skipping Web Push.")
+    if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_ADMIN_EMAIL:
+        logger.warning("VAPID settings not configured. Skipping Web Push.")
         return None
 
     registration_info = {

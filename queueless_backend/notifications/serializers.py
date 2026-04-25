@@ -10,6 +10,10 @@ class PushSubscriptionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         queue_entry = self.context.get("queue_entry")
+        if queue_entry is None:
+            raise serializers.ValidationError(
+                {"queue_entry": "queue_entry must be provided in serializer context."}
+            )
         subscription, created = PushSubscription.objects.update_or_create(
             queue_entry=queue_entry,
             endpoint=validated_data["endpoint"],

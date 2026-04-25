@@ -133,8 +133,12 @@ def maybe_auto_tick_institution(
     lock_timeout = max(30, interval * 2)
 
     last_tick_ts = cache.get(last_tick_key)
-    if last_tick_ts is not None and (now - float(last_tick_ts)) < interval:
-        return None
+    if last_tick_ts is not None:
+        try:
+            if (now - float(last_tick_ts)) < interval:
+                return None
+        except (TypeError, ValueError):
+            pass  # Corrupted cache value, proceed with tick
 
     if not cache.add(lock_key, lock_token, timeout=lock_timeout):
         return None
@@ -142,8 +146,12 @@ def maybe_auto_tick_institution(
     try:
         now = timezone.now().timestamp()
         last_tick_ts = cache.get(last_tick_key)
-        if last_tick_ts is not None and (now - float(last_tick_ts)) < interval:
-            return None
+        if last_tick_ts is not None:
+            try:
+                if (now - float(last_tick_ts)) < interval:
+                    return None
+            except (TypeError, ValueError):
+                pass
 
         result = simulate_queue_tick_for_institution(
             institution_id=institution_id,
@@ -226,7 +234,13 @@ def simulate_queue_tick_for_institution(
     grace_period_seconds: int = 180,
 ):
     with transaction.atomic():
-        institution = Institution.objects.select_for_update().get(pk=institution_id)
+        try:
+            institution = Institution.objects.select_for_update().get(pk=institution_id)
+        except Institution.DoesNotExist:
+            return {
+                "institution_id": institution_id,
+                "error": "Institution not found",
+            }
 
         # --- Step 1: Expire stale no-shows ---
         expired_entries = expire_stale_serving_entries(
