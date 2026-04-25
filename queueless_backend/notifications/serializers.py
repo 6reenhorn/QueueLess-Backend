@@ -1,6 +1,24 @@
 from rest_framework import serializers
 
-from .models import Notification
+from .models import Notification, PushSubscription
+
+
+class PushSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PushSubscription
+        fields = ["endpoint", "p256dh", "auth"]
+
+    def create(self, validated_data):
+        queue_entry = self.context.get("queue_entry")
+        subscription, created = PushSubscription.objects.update_or_create(
+            queue_entry=queue_entry,
+            endpoint=validated_data["endpoint"],
+            defaults={
+                "p256dh": validated_data["p256dh"],
+                "auth": validated_data["auth"],
+            },
+        )
+        return subscription
 
 
 class NotificationSerializer(serializers.ModelSerializer):

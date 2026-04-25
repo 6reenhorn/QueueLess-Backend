@@ -12,7 +12,37 @@ from queue_tracker.query_params import (
 from queue_tracker.services import maybe_auto_tick_institution
 
 from .models import Notification
-from .serializers import NotificationAcknowledgeSerializer, NotificationSerializer
+from .serializers import (
+    NotificationAcknowledgeSerializer,
+    NotificationSerializer,
+    PushSubscriptionSerializer,
+)
+
+
+class PushSubscriptionCreateView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, session_id):
+        try:
+            queue_entry = QueueEntry.objects.get(session_id=session_id)
+        except QueueEntry.DoesNotExist:
+            return Response(
+                {"detail": "Queue entry not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = PushSubscriptionSerializer(
+            data=request.data,
+            context={"queue_entry": queue_entry},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # Update opt-in status on the queue entry
+        queue_entry.browser_push_opt_in = True
+        queue_entry.save(update_fields=["browser_push_opt_in", "updated_at"])
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class QueueEntryNotificationListView(APIView):
