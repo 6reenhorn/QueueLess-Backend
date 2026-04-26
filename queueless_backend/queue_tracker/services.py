@@ -9,8 +9,32 @@ from django.utils import timezone
 
 from mock_api.models import Institution
 from notifications.models import Notification
+from notifications.utils import send_web_push
 
 from .models import ACTIVE_QUEUE_STATUSES, QueueEntry, QueueEntryStatus
+
+
+def _trigger_web_push_after_commit(queue_entry_id, event_type, message):
+    """
+    Background-like execution of web push after the DB transaction commits.
+    """
+    try:
+        entry = QueueEntry.objects.get(pk=queue_entry_id)
+        subscriptions = entry.push_subscriptions.all()
+        if not subscriptions.exists():
+            return
+
+        payload = {
+            "title": "QueueLess",
+            "body": message,
+            "event_type": event_type,
+            "session_id": str(entry.session_id),
+        }
+        for sub in subscriptions:
+            send_web_push(sub, payload)
+    except Exception:
+        # Avoid crashing the main process if push fails
+        pass
 
 
 def expire_stale_serving_entries(institution_id, grace_period_seconds):
@@ -51,6 +75,16 @@ def expire_stale_serving_entries(institution_id, grace_period_seconds):
                     for entry in expired_entries
                 ]
             )
+            for entry in expired_entries:
+                msg = (
+                    f"Queue #{entry.queue_number} expired "
+                    f"(no check-in within grace period)."
+                )
+                transaction.on_commit(
+                    lambda e_id=entry.id, m=msg: _trigger_web_push_after_commit(
+                        e_id, Notification.EventType.SESSION_EXPIRED, m
+                    )
+                )
         return expired_entries
 
 
@@ -99,8 +133,12 @@ def maybe_auto_tick_institution(
     lock_timeout = max(30, interval * 2)
 
     last_tick_ts = cache.get(last_tick_key)
-    if last_tick_ts is not None and (now - float(last_tick_ts)) < interval:
-        return None
+    if last_tick_ts is not None:
+        try:
+            if (now - float(last_tick_ts)) < interval:
+                return None
+        except (TypeError, ValueError):
+            pass  # Corrupted cache value, proceed with tick
 
     if not cache.add(lock_key, lock_token, timeout=lock_timeout):
         return None
@@ -108,8 +146,12 @@ def maybe_auto_tick_institution(
     try:
         now = timezone.now().timestamp()
         last_tick_ts = cache.get(last_tick_key)
-        if last_tick_ts is not None and (now - float(last_tick_ts)) < interval:
-            return None
+        if last_tick_ts is not None:
+            try:
+                if (now - float(last_tick_ts)) < interval:
+                    return None
+            except (TypeError, ValueError):
+                pass
 
         result = simulate_queue_tick_for_institution(
             institution_id=institution_id,
@@ -192,7 +234,13 @@ def simulate_queue_tick_for_institution(
     grace_period_seconds: int = 180,
 ):
     with transaction.atomic():
-        institution = Institution.objects.select_for_update().get(pk=institution_id)
+        try:
+            institution = Institution.objects.select_for_update().get(pk=institution_id)
+        except Institution.DoesNotExist:
+            return {
+                "institution_id": institution_id,
+                "error": "Institution not found",
+            }
 
         # --- Step 1: Expire stale no-shows ---
         expired_entries = expire_stale_serving_entries(
@@ -228,6 +276,13 @@ def simulate_queue_tick_for_institution(
                     for entry in checked_in_serving
                 ]
             )
+            for entry in checked_in_serving:
+                msg = f"Queue #{entry.queue_number} has been completed."
+                transaction.on_commit(
+                    lambda e_id=entry.id, m=msg: _trigger_web_push_after_commit(
+                        e_id, Notification.EventType.SESSION_COMPLETED, m
+                    )
+                )
 
         # --- Step 3: Advance current_serving_number ---
         active_entries = list(
@@ -308,6 +363,16 @@ def simulate_queue_tick_for_institution(
                     for entry in newly_serving_entries
                 ]
             )
+            for entry in newly_serving_entries:
+                msg = (
+                    f"Queue #{entry.queue_number}: it's your turn! "
+                    f"Please check in to confirm your presence."
+                )
+                transaction.on_commit(
+                    lambda e_id=entry.id, m=msg: _trigger_web_push_after_commit(
+                        e_id, Notification.EventType.TURN_CALLED, m
+                    )
+                )
 
         # --- Step 5: Near-turn notifications ---
         near_turn_entries = list(
@@ -349,6 +414,16 @@ def simulate_queue_tick_for_institution(
                     for entry in near_turn_entries
                 ]
             )
+            for entry in near_turn_entries:
+                msg = (
+                    f"Queue #{entry.queue_number}: please prepare, "
+                    f"{entry.people_ahead_calc} ahead of you."
+                )
+                transaction.on_commit(
+                    lambda e_id=entry.id, m=msg: _trigger_web_push_after_commit(
+                        e_id, Notification.EventType.NEAR_TURN, m
+                    )
+                )
 
         return {
             "institution_id": institution.id,

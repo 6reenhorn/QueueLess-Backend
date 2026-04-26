@@ -112,6 +112,8 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+**Note:** All remaining commands in this guide should be run from the `queueless_backend` directory.
+
 ### 6) Start Development Server
 
 ```powershell

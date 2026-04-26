@@ -37,3 +37,27 @@ class Notification(models.Model):
 
     def __str__(self) -> str:
         return f"{self.queue_entry} - {self.channel} - {self.event_type}"
+
+
+class PushSubscription(models.Model):
+    queue_entry = models.ForeignKey(
+        "queue_tracker.QueueEntry",
+        on_delete=models.CASCADE,
+        related_name="push_subscriptions",
+    )
+    endpoint = models.URLField(max_length=500)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["queue_entry", "endpoint"],
+                name="unique_subscription_per_entry_endpoint",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"Push Subscription for {self.queue_entry}"

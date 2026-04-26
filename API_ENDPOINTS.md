@@ -30,6 +30,7 @@ See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, 
 | PATCH | `/api/queue/entries/{session_id}/check-in/` | Public | Confirm presence during SERVING status | Low |
 | GET | `/api/notifications/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
 | PATCH | `/api/notifications/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
+| POST | `/api/notifications/entries/{session_id}/push-subscription/` | Public | Register browser push subscription | Low |
 | GET | `/api/queue/institutions/{institution_id}/entries/` | Admin only | List queue entries for one institution | Medium to high |
 | POST | `/api/queue/institutions/{institution_id}/simulate-tick/` | Admin only | Advance queue state and generate notifications | Medium |
 | POST | `/api/queue/auto-tick/` | Admin only | Trigger one hybrid tick pass across institutions with active queue entries | Low to medium |
@@ -398,6 +399,53 @@ Status: `200 OK`
 ### Load note
 
 Low. Single-row update on a notification record.
+
+## POST /api/notifications/entries/{session_id}/push-subscription/
+
+### Access
+
+Public
+
+### Path params
+
+- `session_id` (UUID)
+
+### Request body
+
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/f_...",
+  "p256dh": "BLm_...",
+  "auth": "A1b2..."
+}
+```
+
+### Body fields
+
+- `endpoint` (string, required, max 500)
+- `p256dh` (string, required, max 200)
+- `auth` (string, required, max 200)
+
+### Success response
+
+Status: `201 Created`
+
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/f_...",
+  "p256dh": "BLm_...",
+  "auth": "A1b2..."
+}
+```
+
+### Common errors
+
+- `400 Bad Request` if payload is invalid.
+- `404 Not Found` if the queue session does not exist.
+
+### Load note
+
+Low. Single-row create or update for the subscription.
 
 ## GET /api/queue/institutions/{institution_id}/entries/
 
