@@ -28,6 +28,7 @@ See [MOCK_QUEUE_OPERATIONS.md](MOCK_QUEUE_OPERATIONS.md) for how to seed, join, 
 | POST | `/api/queue/join/` | Public | Join queue for an institution | Low per call, write-heavy in spikes |
 | GET | `/api/queue/entries/{session_id}/status/` | Public | Get status for one queue session | Low |
 | PATCH | `/api/queue/entries/{session_id}/check-in/` | Public | Confirm presence during SERVING status | Low |
+| POST | `/api/queue/entries/{session_id}/cancel/` | Public | Cancel tracking for a queue session | Low |
 | GET | `/api/notifications/entries/{session_id}/notifications/` | Public | List notifications for one queue session | Low |
 | PATCH | `/api/notifications/entries/{session_id}/notifications/{notification_id}/ack/` | Public | Update notification delivery state | Low |
 | POST | `/api/notifications/entries/{session_id}/push-subscription/` | Public | Register browser push subscription | Low |
@@ -283,6 +284,44 @@ Status: `200 OK`
 ### Common errors
 
 - `400 Bad Request` if the entry is not in `serving` status.
+- `404 Not Found` if the queue session does not exist.
+
+### Load note
+
+Low. Single lookup and update by session ID.
+
+## POST /api/queue/entries/{session_id}/cancel/
+
+### Access
+
+Public
+
+### Request body
+
+None required.
+
+### Success response
+
+Status: `200 OK`
+
+```json
+{
+  "session_id": "0e78ab8f-1f05-4741-8d73-e2d3778e9a35",
+  "institution_id": 1,
+  "queue_number": 42,
+  "current_serving_number": 24,
+  "status": "cancelled",
+  "near_turn_threshold": 3,
+  "near_turn_notified": true,
+  "issued_at": "2026-04-19T09:45:23.123456Z",
+  "updated_at": "2026-04-29T10:15:00.000000Z",
+  "people_ahead": 17
+}
+```
+
+### Common errors
+
+- `400 Bad Request` if the entry is not in an active status (waiting, notified, serving).
 - `404 Not Found` if the queue session does not exist.
 
 ### Load note

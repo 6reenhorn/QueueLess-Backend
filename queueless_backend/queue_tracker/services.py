@@ -118,6 +118,48 @@ def check_in_serving_entry(session_id):
         return entry, None
 
 
+def cancel_queue_entry(session_id):
+    """
+    Cancel a queue entry by session_id.
+    Returns (entry, error). If successful, error is None.
+    """
+    with transaction.atomic():
+        try:
+            entry = QueueEntry.objects.select_for_update().get(session_id=session_id)
+        except QueueEntry.DoesNotExist:
+            return None, {"code": "NOT_FOUND", "message": "Queue entry not found."}
+
+        if entry.status not in ACTIVE_QUEUE_STATUSES:
+            return None, {
+                "code": "INVALID_STATUS",
+                "message": (
+                    f"Cannot cancel: status is '{entry.status}', "
+                    "only active entries can be cancelled."
+                ),
+            }
+
+        entry.status = QueueEntryStatus.CANCELLED
+        entry.save(update_fields=["status", "updated_at"])
+
+        # Create system notification
+        Notification.objects.create(
+            queue_entry=entry,
+            channel=Notification.Channel.SYSTEM,
+            event_type=Notification.EventType.SESSION_COMPLETED,
+            message=f"Queue #{entry.queue_number} has been cancelled by the user.",
+            delivered=False,
+        )
+
+        msg = f"Your tracking for Queue #{entry.queue_number} has been cancelled."
+        transaction.on_commit(
+            lambda e_id=entry.id, m=msg: _trigger_web_push_after_commit(
+                e_id, Notification.EventType.SESSION_COMPLETED, m
+            )
+        )
+
+        return entry, None
+
+
 def maybe_auto_tick_institution(
     institution_id: int,
     *,

@@ -299,3 +299,84 @@ class QueueJoinViewTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already being tracked", response.data["detail"])
+
+
+class QueueCancellationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.institution = Institution.objects.create(
+            name="Test Office",
+            institution_type=Institution.InstitutionType.GOVERNMENT,
+            status=Institution.Status.OPEN,
+            is_active=True,
+        )
+
+    def test_cancel_success(self):
+        entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=4,
+            status=QueueEntryStatus.WAITING,
+        )
+
+        response = self.client.post(f"/api/queue/entries/{entry.session_id}/cancel/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        entry.refresh_from_db()
+        self.assertEqual(entry.status, QueueEntryStatus.CANCELLED)
+
+        # Verify notification created
+        notifications = Notification.objects.filter(
+            queue_entry=entry,
+            message__icontains="cancelled",
+        )
+        self.assertTrue(notifications.exists())
+
+    def test_cancel_already_cancelled(self):
+        entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=5,
+            current_serving_number=4,
+            status=QueueEntryStatus.CANCELLED,
+        )
+
+        response = self.client.post(f"/api/queue/entries/{entry.session_id}/cancel/")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Cannot cancel", response.data["detail"])
+
+    def test_rejoin_after_cancel(self):
+        # 1. Join
+        entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=20,
+            current_serving_number=10,
+            status=QueueEntryStatus.WAITING,
+        )
+
+        # 2. Try to join again with same number (should fail)
+        response_join_fail = self.client.post(
+            "/api/queue/join/",
+            {
+                "institution_id": self.institution.id,
+                "queue_number": 20,
+            },
+        )
+        self.assertEqual(response_join_fail.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # 3. Cancel first entry
+        response_cancel = self.client.post(
+            f"/api/queue/entries/{entry.session_id}/cancel/"
+        )
+        self.assertEqual(response_cancel.status_code, status.HTTP_200_OK)
+
+        # 4. Try to join again with same number (should succeed now)
+        response_join_success = self.client.post(
+            "/api/queue/join/",
+            {
+                "institution_id": self.institution.id,
+                "queue_number": 20,
+            },
+        )
+        self.assertEqual(response_join_success.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response_join_success.data["queue_number"], 20)

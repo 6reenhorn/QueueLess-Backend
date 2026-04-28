@@ -10,7 +10,7 @@ def landing_page(request):
         "family=Outfit:wght@300;400;600&display=swap"
     )
 
-    frontend_url = "https://queue-less-phi.vercel.app"
+    frontend_url = "https://queue-less-ph.vercel.app"
 
     html_content = f"""
     <!DOCTYPE html>

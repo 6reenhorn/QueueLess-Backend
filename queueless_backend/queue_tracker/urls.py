@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     InstitutionQueueStatusView,
     QueueAutoTickView,
+    QueueEntryCancelView,
     QueueEntryCheckInView,
     QueueEntryStatusView,
     QueueJoinView,
@@ -30,6 +31,11 @@ urlpatterns = [
         "entries/<uuid:session_id>/check-in/",
         QueueEntryCheckInView.as_view(),
         name="queue-entry-check-in",
+    ),
+    path(
+        "entries/<uuid:session_id>/cancel/",
+        QueueEntryCancelView.as_view(),
+        name="queue-entry-cancel",
     ),
     path(
         "auto-tick/",
