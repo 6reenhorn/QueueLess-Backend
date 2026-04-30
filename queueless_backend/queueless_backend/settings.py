@@ -31,7 +31,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 IS_TEST_ENV = "PYTEST_CURRENT_TEST" in os.environ or any(
-    "pytest" in arg for arg in sys.argv
+    cmd in sys.argv for cmd in ["pytest", "test"]
 )
 
 
@@ -183,7 +183,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS configuration from environment variables.
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", default=False)
 CORS_ALLOWED_ORIGINS = [
-    origin.strip()
+    origin.strip().rstrip("/")
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]

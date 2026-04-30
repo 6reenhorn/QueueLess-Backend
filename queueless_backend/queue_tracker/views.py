@@ -16,6 +16,7 @@ from .serializers import (
 )
 from .services import (
     auto_tick_active_institutions,
+    cancel_queue_entry,
     check_in_serving_entry,
     expire_stale_serving_entries,
     maybe_auto_tick_institution,
@@ -164,6 +165,26 @@ class QueueEntryCheckInView(APIView):
 
     def patch(self, request, session_id):
         entry, error = check_in_serving_entry(session_id)
+        if error:
+            if error.get("code") == "NOT_FOUND":
+                return Response(
+                    {"detail": error["message"]},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            return Response(
+                {"detail": error["message"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = QueueEntryStatusSerializer(entry)
+        return Response(serializer.data)
+
+
+class QueueEntryCancelView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, session_id):
+        entry, error = cancel_queue_entry(session_id)
         if error:
             if error.get("code") == "NOT_FOUND":
                 return Response(
