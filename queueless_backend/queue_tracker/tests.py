@@ -393,34 +393,54 @@ class QueueThrottlingTests(TestCase):
         )
         cache.clear()
 
+    def _get_rate_limit(self, scope):
+        """Helper to parse DRF throttle rate string (e.g. '5/minute') into int."""
+        from django.conf import settings
+
+        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        rate_str = rates.get(scope, "0/day")
+        try:
+            return int(rate_str.split("/")[0])
+        except (ValueError, IndexError):
+            return 0
+
     def test_join_queue_throttling(self):
-        # Join limit is 5/minute in settings.py
-        for i in range(1, 6):
+        limit = self._get_rate_limit("join")
+        if limit <= 0:
+            self.skipTest("Join throttle limit not configured")
+
+        # Send 'limit' number of successful requests
+        for i in range(1, limit + 1):
             response = self.client.post(
                 "/api/queue/join/",
                 {"institution_id": self.institution.id, "queue_number": 100 + i},
             )
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # 6th request should be throttled
+        # The next request should be throttled
         response = self.client.post(
             "/api/queue/join/",
-            {"institution_id": self.institution.id, "queue_number": 106},
+            {"institution_id": self.institution.id, "queue_number": 999},
         )
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
     def test_status_polling_throttling(self):
+        limit = self._get_rate_limit("burst")
+        if limit <= 0:
+            self.skipTest("Burst throttle limit not configured")
+
         entry = QueueEntry.objects.create(
             institution=self.institution,
             queue_number=10,
             current_serving_number=5,
             status=QueueEntryStatus.WAITING,
         )
-        # Burst limit is 60/minute (adjusted in settings)
-        for _ in range(60):
+
+        # Send 'limit' number of successful requests
+        for _ in range(limit):
             response = self.client.get(f"/api/queue/entries/{entry.session_id}/status/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # 61st request should be throttled
+        # The next request should be throttled
         response = self.client.get(f"/api/queue/entries/{entry.session_id}/status/")
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
