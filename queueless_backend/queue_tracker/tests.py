@@ -380,3 +380,47 @@ class QueueCancellationTests(TestCase):
         )
         self.assertEqual(response_join_success.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response_join_success.data["queue_number"], 20)
+
+
+class QueueThrottlingTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.institution = Institution.objects.create(
+            name="Throttled Office",
+            institution_type=Institution.InstitutionType.GOVERNMENT,
+            status=Institution.Status.OPEN,
+            is_active=True,
+        )
+        cache.clear()
+
+    def test_join_queue_throttling(self):
+        # Join limit is 5/minute in settings.py
+        for i in range(1, 6):
+            response = self.client.post(
+                "/api/queue/join/",
+                {"institution_id": self.institution.id, "queue_number": 100 + i},
+            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # 6th request should be throttled
+        response = self.client.post(
+            "/api/queue/join/",
+            {"institution_id": self.institution.id, "queue_number": 106},
+        )
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_status_polling_throttling(self):
+        entry = QueueEntry.objects.create(
+            institution=self.institution,
+            queue_number=10,
+            current_serving_number=5,
+            status=QueueEntryStatus.WAITING,
+        )
+        # Burst limit is 60/minute (adjusted in settings)
+        for _ in range(60):
+            response = self.client.get(f"/api/queue/entries/{entry.session_id}/status/")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # 61st request should be throttled
+        response = self.client.get(f"/api/queue/entries/{entry.session_id}/status/")
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)

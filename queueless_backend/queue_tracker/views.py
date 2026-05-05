@@ -22,12 +22,11 @@ from .services import (
     maybe_auto_tick_institution,
     simulate_queue_tick_for_institution,
 )
-from .throttles import BurstRateThrottle, JoinQueueRateThrottle
 
 
 class QueueJoinView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [JoinQueueRateThrottle]
+    throttle_scope = "join"
 
     def post(self, request):
         serializer = QueueJoinSerializer(data=request.data)
@@ -131,7 +130,7 @@ class QueueJoinView(APIView):
 
 class QueueEntryStatusView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [BurstRateThrottle]
+    throttle_scope = "burst"
 
     def get(self, request, session_id):
         try:
@@ -165,7 +164,7 @@ class QueueEntryStatusView(APIView):
 
 class QueueEntryCheckInView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [BurstRateThrottle]
+    throttle_scope = "burst"
 
     def patch(self, request, session_id):
         entry, error = check_in_serving_entry(session_id)
@@ -186,7 +185,7 @@ class QueueEntryCheckInView(APIView):
 
 class QueueEntryCancelView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [BurstRateThrottle]
+    throttle_scope = "burst"
 
     def post(self, request, session_id):
         entry, error = cancel_queue_entry(session_id)

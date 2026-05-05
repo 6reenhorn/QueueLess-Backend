@@ -183,13 +183,15 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/day",
-        "user": "1000/day",
-        "burst": "30/minute",
-        "join": "5/minute",
+        "anon": os.getenv("DRF_THROTTLE_RATE_ANON", "20000/day"),
+        "user": os.getenv("DRF_THROTTLE_RATE_USER", "100000/day"),
+        "burst": os.getenv("DRF_THROTTLE_RATE_BURST", "60/minute"),
+        "join": os.getenv("DRF_THROTTLE_RATE_JOIN", "5/minute"),
     },
+    "NUM_PROXIES": int(os.getenv("DRF_NUM_PROXIES", "1")),
 }
 
 # CORS configuration from environment variables.
