@@ -179,6 +179,28 @@ STORAGES = {
     },
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+try:
+    _drf_num_proxies = os.getenv("DRF_NUM_PROXIES")
+    DRF_NUM_PROXIES = int(_drf_num_proxies) if _drf_num_proxies is not None else None
+    if DRF_NUM_PROXIES is not None and DRF_NUM_PROXIES < 0:
+        raise ImproperlyConfigured("DRF_NUM_PROXIES must be a non-negative integer.")
+except ValueError as exc:
+    raise ImproperlyConfigured("DRF_NUM_PROXIES must be an integer.") from exc
+
+REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.getenv("DRF_THROTTLE_RATE_ANON", "20000/day"),
+        "user": os.getenv("DRF_THROTTLE_RATE_USER", "100000/day"),
+        "burst": os.getenv("DRF_THROTTLE_RATE_BURST", "60/minute"),
+        "join": os.getenv("DRF_THROTTLE_RATE_JOIN", "5/minute"),
+    },
+    "NUM_PROXIES": DRF_NUM_PROXIES,
+}
 
 # CORS configuration from environment variables.
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", default=False)

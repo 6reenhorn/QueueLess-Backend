@@ -1,7 +1,8 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.cache import cache
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -380,3 +381,66 @@ class QueueCancellationTests(TestCase):
         )
         self.assertEqual(response_join_success.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response_join_success.data["queue_number"], 20)
+
+
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "throttling-test-cache",
+        }
+    },
+    REST_FRAMEWORK={
+        "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+        "DEFAULT_THROTTLE_RATES": {"join": "1/minute", "burst": "1/minute"},
+    },
+)
+class QueueThrottlingTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.institution = Institution.objects.create(
+            name="Throttled Office",
+            institution_type=Institution.InstitutionType.GOVERNMENT,
+            status=Institution.Status.OPEN,
+            is_active=True,
+        )
+        cache.clear()
+
+    def test_join_queue_throttling(self):
+        # We patch ScopedRateThrottle.THROTTLE_RATES because DRF loads it once
+        with patch(
+            "rest_framework.throttling.ScopedRateThrottle.THROTTLE_RATES",
+            {"join": "1/minute", "burst": "1/minute"},
+        ):
+            # Join limit is pinned to 1/minute
+            response = self.client.post(
+                "/api/queue/join/",
+                {"institution_id": self.institution.id, "queue_number": 101},
+            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+            # 2nd request should be throttled
+            response = self.client.post(
+                "/api/queue/join/",
+                {"institution_id": self.institution.id, "queue_number": 102},
+            )
+            self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_status_polling_throttling(self):
+        with patch(
+            "rest_framework.throttling.ScopedRateThrottle.THROTTLE_RATES",
+            {"join": "1/minute", "burst": "1/minute"},
+        ):
+            entry = QueueEntry.objects.create(
+                institution=self.institution,
+                queue_number=10,
+                current_serving_number=5,
+                status=QueueEntryStatus.WAITING,
+            )
+            # Burst limit is pinned to 1/minute
+            response = self.client.get(f"/api/queue/entries/{entry.session_id}/status/")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            # 2nd request should be throttled
+            response = self.client.get(f"/api/queue/entries/{entry.session_id}/status/")
+            self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
