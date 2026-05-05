@@ -182,6 +182,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 try:
     _drf_num_proxies = os.getenv("DRF_NUM_PROXIES")
     DRF_NUM_PROXIES = int(_drf_num_proxies) if _drf_num_proxies is not None else None
+    if DRF_NUM_PROXIES is not None and DRF_NUM_PROXIES < 0:
+        raise ImproperlyConfigured("DRF_NUM_PROXIES must be a non-negative integer.")
 except ValueError as exc:
     raise ImproperlyConfigured("DRF_NUM_PROXIES must be an integer.") from exc
 
