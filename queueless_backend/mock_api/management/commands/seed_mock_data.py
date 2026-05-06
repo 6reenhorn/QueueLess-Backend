@@ -83,12 +83,30 @@ class Command(BaseCommand):
             action="store_true",
             help="Delete existing queue entries for seeded institutions first.",
         )
+        parser.add_argument(
+            "--flush",
+            action="store_true",
+            help="Delete ALL institutions and queue entries before seeding.",
+        )
+        parser.add_argument(
+            "--close-count",
+            type=int,
+            default=0,
+            help="Number of institutions to set as CLOSED for simulation.",
+        )
 
     def handle(self, *args, **options):
         skip_queues = options["skip_queues"]
         min_queue = options["min_queue"]
         max_queue = options["max_queue"]
         reset_queues = options["reset_queues"]
+        flush = options["flush"]
+        close_count = options["close_count"]
+
+        if flush:
+            self.stdout.write(self.style.WARNING("Flushing all data..."))
+            QueueEntry.objects.all().delete()
+            Institution.objects.all().delete()
 
         if min_queue < 0 or max_queue < 0:
             self.stderr.write(self.style.ERROR("Queue limits cannot be negative."))
@@ -120,6 +138,16 @@ class Command(BaseCommand):
                 created_count += 1
             else:
                 updated_count += 1
+
+        # Handle closing random institutions
+        if close_count > 0:
+            to_close = random.sample(
+                seeded_institutions, min(close_count, len(seeded_institutions))
+            )
+            for inst in to_close:
+                inst.status = Institution.Status.CLOSED
+                inst.save()
+            self.stdout.write(f"Closed {len(to_close)} institutions for simulation.")
 
         self.stdout.write(
             self.style.SUCCESS(

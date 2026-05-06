@@ -44,12 +44,12 @@ def landing_page(request):
                 background: var(--bg);
                 background-image: var(--gradient-bg);
                 color: var(--text);
-                height: 100vh;
+                min-height: 100vh;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                overflow: hidden;
+                padding: 5rem 1.5rem 2rem 1.5rem;
             }}
             .nav {{
                 position: absolute;
@@ -133,6 +133,7 @@ def landing_page(request):
                 gap: 1rem;
                 justify-content: center;
                 align-items: center;
+                flex-wrap: wrap;
             }}
             .btn {{
                 padding: 1rem 2rem;
@@ -199,6 +200,43 @@ def landing_page(request):
                     circle, rgba(37, 99, 235, 0.05) 0%, transparent 70%
                 );
                 border-radius: 50%;
+            }}
+            @media (max-width: 640px) {{
+                .stats {{
+                    gap: 2rem;
+                    flex-wrap: wrap;
+                }}
+                h1 {{
+                    font-size: 2.5rem;
+                }}
+                .nav {{
+                    padding: 1.5rem;
+                }}
+            }}
+            @media (max-width: 480px) {{
+                .cta-group {{
+                    flex-direction: column;
+                    width: 100%;
+                }}
+                .btn {{
+                    width: 100%;
+                    text-align: center;
+                }}
+                .stats {{
+                    gap: 1.5rem;
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                }}
+                .stat-item {{
+                    text-align: center;
+                }}
+                h1 {{
+                    font-size: 2.25rem;
+                }}
+                p {{
+                    font-size: 1.1rem;
+                }}
             }}
         </style>
     </head>
