@@ -164,6 +164,10 @@ class Command(BaseCommand):
         now = timezone.now()
 
         for institution in seeded_institutions:
+            if institution.status == Institution.Status.CLOSED:
+                QueueEntry.objects.filter(institution=institution).delete()
+                continue
+
             if reset_queues:
                 QueueEntry.objects.filter(institution=institution).delete()
 
