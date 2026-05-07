@@ -18,12 +18,12 @@ The system demonstrated high **Resilience** and **Reliability** under extreme st
 
 ### A. Distributed Traffic Management (Throttling)
 *   **Observation:** The `POST /api/queue/join/` endpoint recorded **20,293 failures** out of 20,308 requests.
-*   **Result:** This is a **Success State**. It confirms that the DRF Scoped Throttling (`5/minute` limit) correctly identified and blocked the simulated "attack" or "flash crowd." 
+*   **Result:** This is a **Success State**. It confirms that the DRF Scoped Throttling (`5/minute` limit) correctly identified and blocked the simulated "attack" or "flash crowd."
 *   **Impact:** By rejecting these 20,000+ requests at the middleware layer, the system prevented 20,000 unnecessary database write operations, maintaining stability for the rest of the system.
 
 ### B. Scalability & Latency
 *   **Observation:** Successful Join requests had an average response time of only **26.1 ms**.
-*   **Result:** The business logic (validating the institution and creating a queue entry) is highly optimized. 
+*   **Result:** The business logic (validating the institution and creating a queue entry) is highly optimized.
 *   **Saturation Point:** The system reached its "Saturation Point" at around 140 Requests Per Second (RPS). Beyond this, latency increased as requests queued up in the ASGI worker pool, which is standard behavior for a single-instance server.
 
 ### C. Graceful Degradation
@@ -31,7 +31,7 @@ The system demonstrated high **Resilience** and **Reliability** under extreme st
 *   **Result:** This shows the system does not "fail all at once." It prioritizes resources and continues to serve read-only data even when write-heavy endpoints are under stress.
 
 ## 4. Conclusion
-The stress test verifies that **QueueLess** is production-ready from a PDC perspective. It effectively uses **Synchronization Primitives** (to prevent duplicate tickets) and **Distributed Throttling** (to prevent resource exhaustion). 
+The stress test verifies that **QueueLess** is production-ready from a PDC perspective. It effectively uses **Synchronization Primitives** (to prevent duplicate tickets) and **Distributed Throttling** (to prevent resource exhaustion).
 
-**Recommendation for Production:** 
+**Recommendation for Production:**
 In a live cloud environment (e.g., AWS/Heroku), the throttle rates should be tuned based on expected office traffic, and a load balancer should be used to distribute this 140+ RPS load across multiple worker instances.
